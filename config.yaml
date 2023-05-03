@@ -1,0 +1,12 @@
+address_to_send: ''
+coin_to_transfer: Ethereum
+custom_gas_price: false
+gas_limit: '3000000'
+gas_price: Auto
+max_bridge_amount: ''
+min_bridge_amount: ''
+send_to_one_address: true
+slippage: '0.5'
+source_chain: Arbitrum
+target_chain: Optimism
+test_mode: true
