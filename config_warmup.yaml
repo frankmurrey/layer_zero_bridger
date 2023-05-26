@@ -1,0 +1,10 @@
+min_delay_seconds: 0
+max_delay_seconds: 5
+chain_options: ['Arbitrum','Polygon', 'Optimism', 'Ethereum']
+coin_to_transfer: "stable_coins"
+shuffle_wallets_order: false
+max_gas_limit: 4000000
+min_amount_to_transfer: 5
+max_amount_to_transfer: 10
+slippage: 0.5
+test_mode: true
