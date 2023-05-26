@@ -1,30 +1,34 @@
-import time
-from bridge_swap.eth_bridge import eth_mass_transfer
-from bridge_swap.token_bridge import token_mass_transfer, token_mass_approve
-from bridge_swap.bridge_to_aptos import eth_mass_transfer_to_aptos, token_mass_transfer_to_aptos
-from bridge_swap.bridge_to_aptos import token_mass_approve_to_aptos
-
 from src.files_manager import load_config, save_config
 from src.files_manager import read_evm_wallets_from_file, read_aptos_wallets_from_file
 from src.bridge_manager import BridgeManager
 from src.config import get_config_from_dict
 
-from loguru import logger
+from bridge_swap.bridge_runner import run_bridge
 
 import PySimpleGUI as sg
 
 
-class LayerZeroGui:
+class LayerZeroManualGui:
     def __init__(self):
-        self.source_chain_options = ['Arbitrum', 'Optimism', 'Polygon', 'Ethereum', 'BSC', 'Fantom', 'Avalanche']
-        self.target_chain_options = ['Arbitrum', 'Optimism', 'Polygon', 'Ethereum', 'BSC', 'Fantom', 'Avalanche', 'Aptos']
-        self.coin_options = ['Ethereum', 'USDC', 'USDT']
+        self.bridge_options = ['Stargate', 'Aptos', 'CoreDao']
+
+        self.source_chain_options_stargate = ['Arbitrum', 'Optimism', 'Polygon', 'Ethereum', 'BSC', 'Fantom', 'Avalanche']
+        self.target_chain_options_stargate = ['Arbitrum', 'Optimism', 'Polygon', 'Ethereum', 'BSC', 'Fantom', 'Avalanche']
+        self.coin_options_stargate = ['Ethereum', 'USDC', 'USDT']
+
+        self.source_chain_options_aptos = ['Ethereum', 'Polygon', 'Avalanche', 'Optimism', 'Arbitrum']
+        self.target_chain_options_aptos = ['Aptos']
+        self.coin_options_aptos = ['Ethereum', 'USDC', 'USDT']
+
+        self.source_chain_options_core_dao = ['BSC']
+        self.target_chain_options_core_dao = ['CoreDao']
+        self.coin_options_core_dao = ['USDC', 'USDT']
 
         self.bridge_data = None
 
-    def update_chain_options(self, window, values):
+    def update_chain_options(self, window, values, current_chain_options):
         chosen_chain = values['source_chain']
-        update_target_chain_options = self.target_chain_options.copy()
+        update_target_chain_options = current_chain_options.copy()
         try:
             update_target_chain_options.remove(chosen_chain)
         except ValueError:
@@ -39,14 +43,18 @@ class LayerZeroGui:
 
         window['source_chain'].update(value=config['source_chain'])
         window['target_chain'].update(value=config['target_chain'])
+        window['bridge_option'].update(value=config['bridge_option'])
         window['slippage'].update(value=config['slippage'])
         window['gas_limit'].update(value=config['gas_limit'])
         window['coin_to_transfer'].update(value=config['coin_to_transfer'])
         window['min_bridge_amount'].update(value=config['min_bridge_amount'])
         window['max_bridge_amount'].update(value=config['max_bridge_amount'])
+        window['min_delay_seconds'].update(value=config['min_delay_seconds'])
+        window['max_delay_seconds'].update(value=config['max_delay_seconds'])
         window['test_mode'].update(value=config['test_mode'])
         window['send_to_one_address'].update(value=config['send_to_one_address'])
         window['address_to_send'].update(value=config['address_to_send'])
+        window['send_all_balance'].update(value=config['send_all_balance'])
         if config['custom_gas_price']:
             window['custom_gas_price'].update(value=True)
             window['gas_price'].update(value=config['gas_price'])
@@ -70,6 +78,8 @@ class LayerZeroGui:
                                     font=('Helvetica', 12))
         target_chain_text = sg.Text(f'Target chain: {values["target_chain"]}',
                                     font=('Helvetica', 12),)
+        bridge_option_text = sg.Text(f'Bridge option: {values["bridge_option"]}',
+                                        font=('Helvetica', 12))
         slippage_text = sg.Text(f'Slippage: {values["slippage"]}%',
                                 font=('Helvetica', 12))
         gas_limit_text = sg.Text(f'Gas limit: {values["gas_limit"]}',
@@ -78,6 +88,12 @@ class LayerZeroGui:
                                  font=('Helvetica', 12))
         coin_to_transfer_text = sg.Text(f'Coin to transfer: {values["coin_to_transfer"]}',
                                         font=('Helvetica', 12))
+        send_all_balance_text = sg.Text(f'Send all balance: {values["send_all_balance"]}',
+                                        font=('Helvetica', 12))
+        min_delay_seconds_text = sg.Text(f'Min delay seconds: {values["min_delay_seconds"]}',
+                                            font=('Helvetica', 12))
+        max_delay_seconds_text = sg.Text(f'Max delay seconds: {values["max_delay_seconds"]}',
+                                            font=('Helvetica', 12))
         min_bridge_amount_text = sg.Text(f'Amount to transfer min: {values["min_bridge_amount"]}',
                                          font=('Helvetica', 12))
         max_bridge_amount_text = sg.Text(f'Amount to transfer max: {values["max_bridge_amount"]}',
@@ -86,6 +102,7 @@ class LayerZeroGui:
         agree_checkbox = sg.Checkbox('All data correct', key='agree_checkbox')
         bridge_button = sg.Button('Bridge', size=(10, 1), key='bridge_button')
         back_button = sg.Button('Back', size=(10, 1), key='back_button')
+        watermark = sg.Text('https://github.com/frankmurrey (tg @shnubjack)', font=('Helvetica', 9), text_color='white')
 
         layout = [
             [warning_text],
@@ -93,14 +110,20 @@ class LayerZeroGui:
             [address_to_send_text],
             [source_chain_text],
             [target_chain_text],
+            [bridge_option_text],
             [slippage_text],
             [gas_limit_text],
             [gas_price_text],
             [coin_to_transfer_text],
             [min_bridge_amount_text],
             [max_bridge_amount_text],
+            [send_all_balance_text],
+            [min_delay_seconds_text],
+            [max_delay_seconds_text],
             [agree_checkbox],
-            [back_button, bridge_button]
+            [back_button, bridge_button],
+            [watermark]
+
         ]
 
         return layout
@@ -117,7 +140,7 @@ class LayerZeroGui:
                                    font=('Helvetica', 12))
 
         source_chain_text = sg.Text('Source chain:')
-        source_chain_combo = sg.Combo(self.source_chain_options,
+        source_chain_combo = sg.Combo(self.source_chain_options_stargate,
                                       size=field_size,
                                       key='source_chain',
                                       enable_events=True)
@@ -125,7 +148,7 @@ class LayerZeroGui:
         arrow_text = sg.Text('->')
 
         target_chain_text = sg.Text('Target chain:', pad=((110, 0), (0, 0)))
-        target_chain_combo = sg.Combo(self.target_chain_options,
+        target_chain_combo = sg.Combo(self.target_chain_options_stargate,
                                       size=field_size,
                                       key='target_chain',
                                       enable_events=True)
@@ -134,6 +157,13 @@ class LayerZeroGui:
         slippage_input = sg.InputText(size=field_size,
                                       default_text=0.5,
                                       key='slippage')
+
+        bridge_option_text = sg.Text('Bridge:')
+        bridge_option_combo = sg.Combo(self.bridge_options,
+                                       size=field_size,
+                                       default_value='Stargate',
+                                       key='bridge_option',
+                                       enable_events=True)
 
         gas_limit_text = sg.Text('Gas limit:')
         gas_limit_input = sg.InputText(size=field_size,
@@ -153,11 +183,16 @@ class LayerZeroGui:
                                        key='gas_price')
 
         coin_to_transfer_text = sg.Text('Coin to transfer:')
-        coin_to_transfer_combo = sg.Combo(self.coin_options,
+        coin_to_transfer_combo = sg.Combo(self.coin_options_stargate,
                                           size=field_size,
                                           default_value='USDC',
                                           key='coin_to_transfer',
                                           enable_events=True)
+
+        send_all_balance_checkbox = sg.Checkbox('Send all balance',
+                                                key='send_all_balance',
+                                                enable_events=True,
+                                                pad=((76, 0), (0, 0)))
 
         min_bridge_amount_text = sg.Text('Min amount to bridge:',
                                          pad=((65, 0), (0, 0)))
@@ -179,31 +214,49 @@ class LayerZeroGui:
                                              key='address_to_send',
                                              disabled=True)
 
+        min_delay_text = sg.Text('Min delay (sec):')
+        min_delay_input = sg.InputText(size=field_size,
+                                       default_text=0,
+                                       key='min_delay_seconds')
+
+        max_delay_text = sg.Text('Max delay (sec):', pad=((51, 0), (0, 0)))
+        max_delay_input = sg.InputText(size=field_size,
+                                       default_text=0,
+                                       key='max_delay_seconds',)
+
         test_mode_checkbox = sg.Checkbox('Test mode', key='test_mode')
         next_button = sg.Button('Next', size=(10, 1), key='next_button')
         cancel_button = sg.Button('Cancel', size=(10, 1), key='cancel_button')
         save_cfg_button = sg.Button('Save config', size=(10, 1), key='save_cfg_button')
         load_cfg_button = sg.Button('Load config', size=(10, 1), key='load_cfg_button')
+        watermark = sg.Text('https://github.com/frankmurrey (tg @shnubjack)', font=('Helvetica', 9), text_color='white')
 
-        layout = [[evm_wallets_text, apt_wallets_text],
-                  [sg.Text('')],
-                  [source_chain_text, target_chain_text],
-                  [source_chain_combo, arrow_text, target_chain_combo],
-                  [sg.Text('')],
-                  [address_to_send_text],
-                  [address_to_send_input],
-                  [address_to_send_checkbox],
-                  [sg.Text('')],
-                  [coin_to_transfer_text, min_bridge_amount_text, max_bridge_amount_text],
-                  [coin_to_transfer_combo, min_bridge_amount_input, max_bridge_amount_input],
-                  [slippage_text],
-                  [slippage_input],
-                  [sg.Text('')],
-                  [gas_limit_text, gas_price_text],
-                  [gas_limit_input, gas_price_input, gas_price_checkbox],
-                  [sg.Text('')],
-                  [test_mode_checkbox],
-                  [next_button, cancel_button, save_cfg_button, load_cfg_button]]
+        layout = [
+            [evm_wallets_text, apt_wallets_text],
+            [sg.Text('')],
+            [source_chain_text, target_chain_text],
+            [source_chain_combo, arrow_text, target_chain_combo],
+            [bridge_option_text],
+            [bridge_option_combo],
+            [sg.Text('')],
+            [address_to_send_text],
+            [address_to_send_input],
+            [address_to_send_checkbox],
+            [sg.Text('')],
+            [coin_to_transfer_text, min_bridge_amount_text, max_bridge_amount_text],
+            [coin_to_transfer_combo, min_bridge_amount_input, max_bridge_amount_input],
+            [slippage_text, send_all_balance_checkbox],
+            [slippage_input],
+            [sg.Text('')],
+            [gas_limit_text, gas_price_text],
+            [gas_limit_input, gas_price_input, gas_price_checkbox],
+            [min_delay_text, max_delay_text],
+            [min_delay_input, max_delay_input],
+            [sg.Text('')],
+            [test_mode_checkbox],
+            [next_button, cancel_button, save_cfg_button, load_cfg_button],
+            [watermark]
+        ]
 
         return layout
 
@@ -216,6 +269,18 @@ class LayerZeroGui:
         else:
             gas_price_input.update(disabled=True, value="Auto", text_color='grey')
 
+    def send_all_balance_option(self, values, window):
+        include_option = values['send_all_balance']
+        min_bridge_input = window['min_bridge_amount']
+        max_bridge_input = window['max_bridge_amount']
+
+        if include_option:
+            min_bridge_input.update(disabled=True, value='', text_color='grey')
+            max_bridge_input.update(disabled=True, value='', text_color='grey')
+        else:
+            min_bridge_input.update(disabled=False, value='', text_color='black')
+            max_bridge_input.update(disabled=False, value='', text_color='black')
+
     def send_to_one_address_option(self, values, window):
         include_option = values['send_to_one_address']
         address_input = window['address_to_send']
@@ -225,9 +290,33 @@ class LayerZeroGui:
         else:
             address_input.update(disabled=True, value='', text_color='grey')
 
-    def run(self):
+    def bridge_option(self, values, window):
+        bridge_name = values['bridge_option']
+        source_chain_combo = window['source_chain']
+        target_chain_combo = window['target_chain']
+        coin_to_transfer_combo = window['coin_to_transfer']
+
+        if bridge_name == 'Stargate':
+            source_chain_combo.update(values=self.source_chain_options_stargate)
+            target_chain_combo.update(values=self.target_chain_options_stargate)
+            coin_to_transfer_combo.update(values=self.coin_options_stargate)
+            window.read()
+
+        elif bridge_name == 'Aptos':
+            source_chain_combo.update(values=self.source_chain_options_aptos)
+            target_chain_combo.update(values=self.target_chain_options_aptos)
+            coin_to_transfer_combo.update(values=self.coin_options_aptos)
+            window.read()
+
+        elif bridge_name == 'CoreDao':
+            source_chain_combo.update(values=self.source_chain_options_core_dao)
+            target_chain_combo.update(values=self.target_chain_options_core_dao)
+            coin_to_transfer_combo.update(values=self.coin_options_core_dao)
+            window.read()
+
+    def run_initial_window(self):
         bridge_layout = self.bridge_layout()
-        window = sg.Window('Layer0 bridger', bridge_layout, size=(600, 600))
+        window = sg.Window('Layer Zero Manual', bridge_layout, size=(600, 650))
 
         while True:
             event, values = window.read()
@@ -235,11 +324,17 @@ class LayerZeroGui:
             if event == sg.WINDOW_CLOSED or event == 'Cancel':
                 break
 
+            elif event == 'bridge_option':
+                self.bridge_option(values, window)
+
             elif event == 'custom_gas_price':
                 self.gas_price_option(values, window)
 
             elif event == 'send_to_one_address':
                 self.send_to_one_address_option(values, window)
+
+            elif event == 'send_all_balance':
+                self.send_all_balance_option(values, window)
 
             elif event == 'save_cfg_button':
                 bridge_manager = BridgeManager(get_config_from_dict(config_dict=values))
@@ -254,11 +349,9 @@ class LayerZeroGui:
             elif event == 'load_cfg_button':
                 self.load_data_from_config(window)
 
-            elif event == 'source_chain':
-                self.update_chain_options(window, values)
-
             elif event == 'next_button':
-                bridge_manager = BridgeManager(get_config_from_dict(config_dict=values))
+                config_dict = get_config_from_dict(config_dict=values)
+                bridge_manager = BridgeManager(config_dict)
                 error_message = bridge_manager.check_if_route_eligible()
 
                 if bridge_manager.check_if_route_eligible() is not True:
@@ -271,11 +364,11 @@ class LayerZeroGui:
 
                 self.bridge_data = values
                 window.close()
-                window = sg.Window('Check data', self.check_info_layout(values), size=(600, 600))
+                window = sg.Window('Check data', self.check_info_layout(values), size=(600, 650))
 
             elif event == 'back_button':
                 window.close()
-                window = sg.Window('Layer0 bridger', self.bridge_layout(), size=(600, 600))
+                window = sg.Window('Layer0 bridger', self.bridge_layout(), size=(600, 650))
 
             elif event == 'bridge_button':
                 if not values['agree_checkbox']:
@@ -284,18 +377,4 @@ class LayerZeroGui:
                 config = get_config_from_dict(config_dict=self.bridge_data)
                 window.close()
 
-                if config.target_chain == "Aptos":
-                    if config.coin_to_transfer == "Ethereum":
-                        eth_mass_transfer_to_aptos(config_data=config)
-                    else:
-                        token_mass_approve_to_aptos(config_data=config)
-                        time.sleep(2)
-                        token_mass_transfer_to_aptos(config_data=config)
-
-                if config.target_chain != "Aptos":
-                    if config.coin_to_transfer == "Ethereum":
-                        eth_mass_transfer(config_data=config)
-                    else:
-                        token_mass_approve(config_data=config)
-                        time.sleep(2)
-                        token_mass_transfer(config_data=config)
+                run_bridge(config_data=config)
