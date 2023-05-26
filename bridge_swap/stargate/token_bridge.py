@@ -1,4 +1,5 @@
 import time
+import random
 
 from bridge_swap.base_bridge import BridgeBase
 from src.files_manager import read_evm_wallets_from_file
@@ -10,7 +11,7 @@ from loguru import logger
 
 def token_mass_transfer(config_data: ConfigSchema):
     print_config(config=config_data,
-                 log_text="Starting token bridge in 5 sec")
+                 delay_seconds=10)
 
     wallets = read_evm_wallets_from_file()
     token_bridge = TokenBridgeManual(config=config_data)
@@ -18,28 +19,12 @@ def token_mass_transfer(config_data: ConfigSchema):
     for wallet in wallets:
         token_bridge.transfer(private_key=wallet, wallet_number=wallet_number)
         wallet_number += 1
-
-
-def token_mass_approve(config_data: ConfigSchema):
-    print_config(config=config_data,
-                 log_text="Starting token approve and check proccess in 5 sec")
-
-    time.sleep(1)
-    wallets = read_evm_wallets_from_file()
-    token_bridge = TokenBridgeManual(config=config_data)
-    wallet_number = 1
-    time_start = time.time()
-    for wallet in wallets:
-        token_bridge.approve_token_transfer(private_key=wallet, wallet_number=wallet_number)
-        wallet_number += 1
-    time_end = time.time() - time_start
-
-    if time_end < 30:
-        logger.warning(f"Approve process took less than 30 sec. Waiting 20 sec to start bridge process")
-        if config_data.test_mode is False:
-            time.sleep(20)
-        else:
-            time.sleep(1)
+        time_delay = random.randint(config_data.min_delay_seconds, config_data.max_delay_seconds)
+        if time_delay == 0:
+            time.sleep(0.3)
+            continue
+        logger.info(f"Waiting {time_delay} seconds before next wallet bridge")
+        time.sleep(time_delay)
 
 
 class TokenBridgeManual(BridgeBase):
@@ -55,22 +40,20 @@ class TokenBridgeManual(BridgeBase):
             logger.error(f"Bridge of {self.config_data.coin_to_transfer} is not supported between"
                          f" {self.config_data.source_chain} and {self.config_data.target_chain}")
 
-    def approve_token_transfer(self, private_key, wallet_number):
-        wallet_address = self.get_wallet_address(private_key=private_key)
+    def get_allowance_amount_for_token(self, private_key):
+        wallet_address = self.get_wallet_address(private_key=private_key,)
+        return self.check_allowance(wallet_address=wallet_address,
+                                    token_contract=self.token_contract,
+                                    spender=self.source_chain.router_address)
 
-        allowed_amount_to_bridge = self.check_allowance(wallet_address=wallet_address,
-                                                        token_contract=self.token_contract,
-                                                        spender=self.source_chain.router_address)
+    def allowance_check_loop(self, private_key, target_allowance_amount):
+        while True:
+            allowance_amount = self.get_allowance_amount_for_token(private_key=private_key)
+            if allowance_amount >= target_allowance_amount:
+                break
+            time.sleep(2)
 
-        if allowed_amount_to_bridge > self.max_bridge_amount:
-            logger.info(f"[{wallet_number}] [{wallet_address}] - Has enough allowance for {self.token_obj.name} bridge")
-            return
-
-        approve_amount = int(1000000 * 10 ** self.get_token_decimals(self.token_contract))
-        allowance_txn = self.build_allowance_tx(wallet_address=wallet_address,
-                                                token_contract=self.token_contract,
-                                                amount_out=approve_amount,
-                                                spender=self.source_chain.router_address)
+    def approve_token_transfer(self, allowance_txn, private_key, wallet_number, wallet_address):
         try:
             estimated_gas_limit = self.get_estimate_gas(transaction=allowance_txn)
 
@@ -85,12 +68,16 @@ class TokenBridgeManual(BridgeBase):
             signed_txn = self.web3.eth.account.sign_transaction(allowance_txn, private_key=private_key)
             tx_hash = self.web3.eth.send_raw_transaction(signed_txn.rawTransaction)
             logger.info(f"[{wallet_number}] [{wallet_address}] - Approve transaction sent: {tx_hash.hex()}")
+            self.allowance_check_loop(private_key=private_key,
+                                      target_allowance_amount=self.max_bridge_amount)
+            logger.info(f"[{wallet_number}] [{wallet_address}] - Approve transaction confirmed")
+            return True
 
         except Exception as e:
             logger.error(f"[{wallet_number}] [{wallet_address}] - Error while sending approval transaction: {e}")
             return False
 
-    def transfer(self, private_key, wallet_number):
+    def transfer(self, private_key, wallet_number=None):
         if not self.token_obj:
             return
 
@@ -105,16 +92,44 @@ class TokenBridgeManual(BridgeBase):
         else:
             dst_wallet_address = wallet_address
 
-        token_amount_out = self.get_random_amount_out(min_amount=self.min_bridge_amount,
-                                                      max_amount=self.max_bridge_amount,
-                                                      token_contract=self.token_contract)
+        if self.config_data.transfer_all_balance is True:
+            token_amount_out = wallet_token_balance_wei
+        else:
+            token_amount_out = self.get_random_amount_out(min_amount=self.min_bridge_amount,
+                                                          max_amount=self.max_bridge_amount,
+                                                          token_contract=self.token_contract)
+        if wallet_number is None:
+            wallet_number = ""
+        else:
+            wallet_number = f"[{wallet_number}]"
 
         if wallet_token_balance_wei < token_amount_out:
-            logger.error(f"[{wallet_number}] [{source_wallet_address}] - {self.config_data.coin_to_transfer} "
+            logger.error(f"{wallet_number} [{source_wallet_address}] - {self.config_data.coin_to_transfer} "
                          f"({self.config_data.source_chain})"
                          f" balance not enough "
                          f"to bridge. Balance: {wallet_token_balance}")
             return
+
+        allowed_amount_to_bridge = self.check_allowance(wallet_address=wallet_address,
+                                                        token_contract=self.token_contract,
+                                                        spender=self.source_chain.router_address)
+
+        if allowed_amount_to_bridge < token_amount_out:
+            logger.warning(f"{wallet_number} [{source_wallet_address}] - Not enough allowance for {self.token_obj.name},"
+                           f" approving {token_amount_out} {self.token_obj.name} to bridge")
+            approve_amount = int(1000000 * 10 ** self.get_token_decimals(self.token_contract))
+            allowance_txn = self.build_allowance_tx(wallet_address=wallet_address,
+                                                    token_contract=self.token_contract,
+                                                    amount_out=approve_amount,
+                                                    spender=self.source_chain.router_address)
+            approve_txn = self.approve_token_transfer(allowance_txn=allowance_txn,
+                                                      private_key=private_key,
+                                                      wallet_number=wallet_number,
+                                                      wallet_address=wallet_address)
+            if approve_txn is not True:
+                return
+        else:
+            logger.info(f"{wallet_number} [{source_wallet_address}] - has enough allowance to bridge")
 
         txn = self.build_token_bridge_tx(wallet_address=wallet_address,
                                          dst_wallet_address=dst_wallet_address,
@@ -129,14 +144,16 @@ class TokenBridgeManual(BridgeBase):
                 txn['gas'] = int(estimated_gas_limit + (estimated_gas_limit * 0.6))
 
             if self.config_data.test_mode is True:
-                logger.info(f"[{wallet_number}] [{source_wallet_address}] - Estimated gas limit for "
+                logger.info(f"{wallet_number} [{source_wallet_address}] - Estimated gas limit for "
                             f"{self.config_data.source_chain} → {self.config_data.target_chain} "
                             f"{self.token_obj.name} bridge: {estimated_gas_limit}")
                 return
 
             signed_txn = self.web3.eth.account.sign_transaction(txn, private_key=private_key)
             tx_hash = self.web3.eth.send_raw_transaction(signed_txn.rawTransaction)
-            logger.info(f"[{wallet_number}] [{source_wallet_address}] - Transaction sent: {tx_hash.hex()}")
+            logger.info(f"{wallet_number} [{source_wallet_address}] - Transaction sent: {tx_hash.hex()}")
+
+            return tx_hash.hex()
         except Exception as e:
-            logger.error(f"[{wallet_number}] [{source_wallet_address}] - Error while sending  transaction: {e}")
+            logger.error(f"{wallet_number} [{source_wallet_address}] - Error while sending  transaction: {e}")
             return

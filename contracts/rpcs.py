@@ -1,8 +1,11 @@
-class RPC:
-    Arbitrum = "https://arbitrum-one.public.blastapi.io"
-    Avalanche = "https://avalanche-c-chain.publicnode.com"
-    BSC = "https://bsc-dataseed1.binance.org"
-    Ethereum = "https://1rpc.io/eth"
-    Fantom = "https://rpcapi.fantom.network"
-    Polygon = "https://mainnet.optimism.io"
-    Optimism = "https://mainnet.optimism.io"
+import json
+
+from src.paths import RPCS_FILE
+
+with open(RPCS_FILE, "r") as f:
+    RPC = json.load(f)
+
+# Please change rpc URLS there →: contracts\rpcs.json
+# Please change rpc URLS there →: contracts\rpcs.json
+# Please change rpc URLS there →: contracts\rpcs.json
+
