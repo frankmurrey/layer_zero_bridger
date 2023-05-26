@@ -1,4 +1,5 @@
 import random
+import time
 
 from src.schemas.config import WarmUpConfigSchema
 from src.config import get_warmup_config
@@ -51,13 +52,17 @@ class WarmUpRouter:
 
     def get_swap_route_stables(self):
         source_chain_stables = self.get_source_chain_stables()
+        if source_chain_stables is None:
+            return None
         source_chain_name = list(source_chain_stables.keys())[0]
         target_chain_name = self.get_target_chain_stables(source_chain_name=source_chain_name)
         random_stable_coin = random.choice(source_chain_stables[source_chain_name])
         if target_chain_name is None or source_chain_name is None or random_stable_coin is None:
             return None
-
-        return {'source_chain': source_chain_name, 'target_chain': target_chain_name, 'coin': random_stable_coin}
+        route = {'source_chain': source_chain_name, 'target_chain': target_chain_name, 'coin': random_stable_coin}
+        logger.warning(f'[{self.chain_balances["wallet_address"]}] - Bridge route:'
+                       f' ({route["source_chain"]} > {route["target_chain"]} -  coin: {route["coin"]})')
+        return route
 
     def get_source_chain_eth(self):
         try:
@@ -98,17 +103,13 @@ class WarmUpRouter:
 
     def get_swap_route_eth(self):
         source_chain_eth = self.get_source_chain_eth()
+        if source_chain_eth is None:
+            return None
         source_chain_name = list(source_chain_eth.keys())[0]
         target_chain_name = self.get_target_chain_eth(source_chain_name=source_chain_name)
         if target_chain_name is None or source_chain_name is None:
             return None
+        logger.warning(f'[{self.chain_balances["wallet_address"]}] - Bridge route:'
+                       f' ({source_chain_name} > {target_chain_name} -  coin: Ethereum)')
 
         return {'source_chain': source_chain_name, 'target_chain': target_chain_name, 'coin': self.eth_coin_name}
-
-
-if __name__ == '__main__':
-    config = get_warmup_config()
-    router = WarmUpRouter(config=config,
-                          chain_balances={'Arbitrum': {'Ethereum': 0.09743419575630895, 'USDC': 935.579303, 'USDT': 100.817915}, 'Optimism': {'Ethereum': 0.16087755505926946, 'USDC': 1084.16429}, 'Ethereum': {'Ethereum': 0.23172092674477782}, 'Avalanche': {'USDC': 1084.16429}})
-    print(router.get_swap_route_stables())
-
