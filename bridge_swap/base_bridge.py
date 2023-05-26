@@ -1,5 +1,7 @@
 import random
 
+from typing import Union
+
 from src.schemas.config import ConfigSchema
 from src.bridge_manager import BridgeManager
 
@@ -9,7 +11,7 @@ from web3 import Web3
 
 
 class BridgeBase:
-    def __init__(self, config: ConfigSchema):
+    def __init__(self, config: Union[ConfigSchema, None] = None):
         self.bridge_manager = BridgeManager(input_data=config)
         self.config_data = config
         self.source_chain = self.bridge_manager.detect_chain(config.source_chain)
@@ -21,7 +23,7 @@ class BridgeBase:
         self.web3 = self.source_chain.web3
 
     def get_checksum_address(self, address):
-        return self.web3.toChecksumAddress(address)
+        return self.web3.to_checksum_address(address)
 
     def get_eth_balance(self, address):
         return self.web3.eth.get_balance(address)
@@ -48,13 +50,19 @@ class BridgeBase:
                                                                             ).call()
         return fee[0]
 
-    def get_aptos_txn_fee(self, router_address, adapter_params, chain_id):
+    def get_endpoint_txn_fee(self, router_address, adapter_params, chain_id):
         fee = self.source_chain.endpoint_contract.functions.estimateFees(chain_id,
                                                                          router_address,
                                                                          "0x",
                                                                          False,
                                                                          adapter_params
                                                                          ).call()
+        return fee[0]
+
+    def get_core_bridge_fee(self, adapter_params):
+        fee = self.source_chain.core_dao_router_contract.functions.estimateBridgeFee(False,
+                                                                                     adapter_params
+                                                                                     ).call()
         return fee[0]
 
     def get_estimate_gas(self, transaction):
@@ -78,7 +86,10 @@ class BridgeBase:
             else:
                 return self.web3.eth.gas_price
         else:
-            return self.web3.eth.gas_price
+            if self.config_data.source_chain.lower() == 'arbitrum':
+                return int(self.web3.eth.gas_price * 1.35)
+            else:
+                return self.web3.eth.gas_price
 
     def get_src_pool_id(self, token_obj):
         return token_obj.pool_id
@@ -113,12 +124,13 @@ class BridgeBase:
     def build_allowance_tx(self, wallet_address, token_contract, amount_out, spender):
         nonce = self.get_wallet_nonce(wallet_address=wallet_address)
         gas_price = self.get_gas_price()
+        gas_limit = self.config_data.gas_limit
         allowance_transaction = token_contract.functions.approve(
             spender,
             int(amount_out)
         ).build_transaction({
             'from': wallet_address,
-            'gas': self.config_data.gas_limit,
+            'gas': gas_limit,
             'gasPrice': gas_price,
             'nonce': nonce,
         })
@@ -129,6 +141,7 @@ class BridgeBase:
         amount_out_min = self.get_amount_out_min(amount_out=amount_out)
         nonce = self.get_wallet_nonce(wallet_address=wallet_address)
         gas_price = self.get_gas_price()
+        gas_limit = self.config_data.gas_limit
         bridge_transaction = self.source_chain.eth_router_contract.functions.swapETH(
             chain_id,
             wallet_address,
@@ -138,7 +151,7 @@ class BridgeBase:
         ).build_transaction({
             'from': wallet_address,
             'value': amount_out + fee,
-            'gas': self.config_data.gas_limit,
+            'gas': gas_limit,
             'gasPrice': gas_price,
             'nonce': nonce,
         })
@@ -150,6 +163,7 @@ class BridgeBase:
         amount_out_min = self.get_amount_out_min(amount_out=amount_out)
         nonce = self.get_wallet_nonce(wallet_address=wallet_address)
         gas_price = self.get_gas_price()
+        gas_limit = self.config_data.gas_limit
         src_pool_id = self.get_src_pool_id(token_obj=token_obj)
         dst_pool_id = self.get_dst_pool_id(token_obj=token_obj)
 
@@ -166,7 +180,7 @@ class BridgeBase:
         ).build_transaction({
             'from': wallet_address,
             'value': fee,
-            'gas': self.config_data.gas_limit,
+            'gas': gas_limit,
             'gasPrice': gas_price,
             'nonce': nonce,
         })
@@ -176,9 +190,11 @@ class BridgeBase:
     def build_token_bridge_to_aptos_tx(self, source_wallet_address, recipient_address: bytes, amount_out, token_obj):
         zro_payment_address = self.web3.to_checksum_address('0x0000000000000000000000000000000000000000')
         adapter_params = self.gef_get_adapter_params(recipient_address=recipient_address)
-        fee: int = self.get_aptos_txn_fee(chain_id=108,
-                                          router_address=self.source_chain.aptos_router_address,
-                                          adapter_params=adapter_params)
+        fee: int = self.get_endpoint_txn_fee(chain_id=108,
+                                             router_address=self.source_chain.aptos_router_address,
+                                             adapter_params=adapter_params)
+        gas_price = self.get_gas_price()
+        gas_limit = self.config_data.gas_limit
         bridge_transaction = self.source_chain.aptos_router_contract.functions.sendToAptos(
             token_obj.address,
             recipient_address,
@@ -187,9 +203,9 @@ class BridgeBase:
             adapter_params
         ).build_transaction({
             'from': source_wallet_address,
-            'value': fee + (self.config_data.gas_limit * self.get_gas_price()),
-            'gas': self.config_data.gas_limit,
-            'gasPrice': self.get_gas_price(),
+            'value': fee,
+            'gas': gas_limit,
+            'gasPrice': gas_price,
             'nonce': self.get_wallet_nonce(wallet_address=source_wallet_address),
         })
 
@@ -198,9 +214,9 @@ class BridgeBase:
     def build_eth_bridge_to_aptos_tx(self, source_wallet_address, recipient_address: bytes, amount_out):
         zro_payment_address = self.web3.to_checksum_address('0x0000000000000000000000000000000000000000')
         adapter_params = self.gef_get_adapter_params(recipient_address=recipient_address)
-        fee: int = self.get_aptos_txn_fee(chain_id=108,
-                                          router_address=self.source_chain.aptos_router_address,
-                                          adapter_params=adapter_params)
+        fee: int = self.get_endpoint_txn_fee(chain_id=108,
+                                             router_address=self.source_chain.aptos_router_address,
+                                             adapter_params=adapter_params)
         bridge_transaction = self.source_chain.aptos_router_contract.functions.sendETHToAptos(
             recipient_address,
             amount_out,
@@ -213,5 +229,22 @@ class BridgeBase:
             'gasPrice': self.get_gas_price(),
             'nonce': self.get_wallet_nonce(wallet_address=source_wallet_address),
         })
+        return bridge_transaction
 
+    def build_token_bridge_core_tx(self, wallet_address, amount_out, token_obj, dst_wallet_address):
+        zro_payment_address = self.web3.to_checksum_address('0x0000000000000000000000000000000000000000')
+        fee: int = self.get_core_bridge_fee(adapter_params='0x')
+        bridge_transaction = self.source_chain.core_dao_router_contract.functions.bridge(
+            token_obj.address,
+            amount_out,
+            dst_wallet_address,
+            [wallet_address, zro_payment_address],
+            '0x'
+        ).build_transaction({
+            'from': wallet_address,
+            'value': fee,
+            'gas': self.config_data.gas_limit,
+            'gasPrice': self.get_gas_price(),
+            'nonce': self.get_wallet_nonce(wallet_address=wallet_address)
+        })
         return bridge_transaction

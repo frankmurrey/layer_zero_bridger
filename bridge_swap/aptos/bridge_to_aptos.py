@@ -1,4 +1,5 @@
 import time
+import random
 
 from bridge_swap.base_bridge import BridgeBase
 from src.files_manager import read_evm_wallets_from_file, read_aptos_wallets_from_file
@@ -10,7 +11,7 @@ from loguru import logger
 
 def eth_mass_transfer_to_aptos(config_data: ConfigSchema):
     print_config(config=config_data,
-                 log_text="Starting ETH bridge in 5 sec")
+                 delay_seconds=10)
 
     token_bridge = EthBridgeManualAptos(config=config_data)
 
@@ -25,17 +26,24 @@ def eth_mass_transfer_to_aptos(config_data: ConfigSchema):
             token_bridge.eth_transfer(private_key=evm_wallets[wallet],
                                       aptos_wallet_address=aptos_wallet,
                                       wallet_number=wallet + 1)
+        time_delay = random.randint(config_data.min_delay_seconds, config_data.max_delay_seconds)
+        logger.info(f"Waiting {time_delay} seconds before next wallet bridge\n")
+        time.sleep(time_delay)
+
     else:
         wallets_amount = min(len(evm_wallets), len(aptos_wallets))
         for wallet in range(wallets_amount):
             token_bridge.eth_transfer(private_key=evm_wallets[wallet],
                                       aptos_wallet_address=aptos_wallets[wallet],
                                       wallet_number=wallet + 1)
+        time_delay = random.randint(config_data.min_delay_seconds, config_data.max_delay_seconds)
+        logger.info(f"Waiting {time_delay} seconds before next wallet bridge\n")
+        time.sleep(time_delay)
 
 
 def token_mass_transfer_to_aptos(config_data: ConfigSchema):
     print_config(config=config_data,
-                 log_text="Starting token bridge in 5 sec")
+                 delay_seconds=10)
 
     token_bridge = TokenBridgeManualAptos(config=config_data)
 
@@ -50,17 +58,24 @@ def token_mass_transfer_to_aptos(config_data: ConfigSchema):
             token_bridge.token_transfer(private_key=evm_wallets[wallet],
                                         aptos_wallet_address=aptos_wallet,
                                         wallet_number=wallet + 1)
+        time_delay = random.randint(config_data.min_delay_seconds, config_data.max_delay_seconds)
+        logger.info(f"Waiting {time_delay} seconds before next wallet bridge\n")
+        time.sleep(time_delay)
+
     else:
         wallets_amount = min(len(evm_wallets), len(aptos_wallets))
         for wallet in range(wallets_amount):
             token_bridge.token_transfer(private_key=evm_wallets[wallet],
                                         aptos_wallet_address=aptos_wallets[wallet],
                                         wallet_number=wallet + 1)
+        time_delay = random.randint(config_data.min_delay_seconds, config_data.max_delay_seconds)
+        logger.info(f"Waiting {time_delay} seconds before next wallet bridge\n")
+        time.sleep(time_delay)
 
 
 def token_mass_approve_to_aptos(config_data: ConfigSchema):
     print_config(config=config_data,
-                 log_text="Starting token approve and check process in 5 sec")
+                 delay_seconds=10)
 
     wallets = read_evm_wallets_from_file()
     token_bridge = TokenBridgeManualAptos(config=config_data)
@@ -139,15 +154,19 @@ class TokenBridgeManualAptos(BridgeBase):
             logger.error(f"Bridge of {self.config_data.coin_to_transfer} is not supported between"
                          f" {self.config_data.source_chain} and {self.config_data.target_chain}")
 
-    def approve_token_transfer(self, private_key, wallet_number):
+    def approve_token_transfer(self, private_key, wallet_number=None):
         wallet_address = self.get_wallet_address(private_key=private_key)
 
         allowed_amount_to_bridge = self.check_allowance(wallet_address=wallet_address,
                                                         token_contract=self.token_contract,
                                                         spender=self.source_chain.aptos_router_address)
+        if wallet_number is None:
+            wallet_number = ""
+        else:
+            wallet_number = f"[{wallet_number}]"
 
         if allowed_amount_to_bridge > self.max_bridge_amount:
-            logger.info(f"[{wallet_number}] [{wallet_address}] - Has enough allowance"
+            logger.info(f"{wallet_number} [{wallet_address}] - Has enough allowance"
                         f" for {self.token_obj.name} bridge")
             return
 
@@ -161,7 +180,7 @@ class TokenBridgeManualAptos(BridgeBase):
             estimated_gas_limit = self.get_estimate_gas(transaction=allowance_txn)
 
             if self.config_data.gas_limit > estimated_gas_limit:
-                allowance_txn['gas'] = int(estimated_gas_limit + (estimated_gas_limit * 0.5))
+                allowance_txn['gas'] = estimated_gas_limit
 
             if self.config_data.test_mode is True:
                 logger.info(f"[{wallet_address}] - Estimated gas limit for {self.token_obj.name}"
@@ -211,9 +230,7 @@ class TokenBridgeManualAptos(BridgeBase):
             estimated_gas_limit = self.get_estimate_gas(transaction=txn)
 
             if self.config_data.gas_limit > estimated_gas_limit:
-                txn['gas'] = int(estimated_gas_limit + (estimated_gas_limit * 0.5))
-                current_l0_fee_value = txn['value'] - (self.config_data.gas_limit * self.get_gas_price())
-                txn['value'] = current_l0_fee_value + (estimated_gas_limit * self.get_gas_price())
+                txn['gas'] = estimated_gas_limit
 
             if self.config_data.test_mode is True:
                 logger.info(

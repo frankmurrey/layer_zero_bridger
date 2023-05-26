@@ -2,11 +2,14 @@ import pathlib
 import os
 
 MAIN_DIR = os.path.join(pathlib.Path(__file__).parent.parent.resolve())
-CONFIG_FILE = os.path.join(MAIN_DIR, "config.yaml")
+CONFIG_FILE = os.path.join(MAIN_DIR, "config_manual.yaml")
+WARM_UP_CONFIG_FILE = os.path.join(MAIN_DIR, "config_warmup.yaml")
 CONTRACTS_DIR = os.path.join(MAIN_DIR, "contracts")
+WALLET_LOGS_DIR = os.path.join(MAIN_DIR, "wallet_logs")
 
 WALLETS_FILE = os.path.join(MAIN_DIR, "evm_wallets.txt")
 APTOS_WALLETS_FILE = os.path.join(MAIN_DIR, "aptos_addresses.txt")
+RPCS_FILE = os.path.join(CONTRACTS_DIR, "rpcs.json")
 
 
 class ArbDir:
@@ -38,6 +41,7 @@ class BscDir:
     USDT_ABI_FILE = os.path.join(ABIS_DIR, "usdt.abi")
     APT_ROUTER_ABI_FILE = os.path.join(ABIS_DIR, "aptos_router.abi")
     ENDPOINT_ABI_FILE = os.path.join(ABIS_DIR, "endpoint.abi")
+    CORE_DAO_ROUTER_ABI_FILE = os.path.join(ABIS_DIR, "core_dao_router.abi")
 
 
 class PolygonDir:
@@ -76,6 +80,14 @@ class FantomDir:
     ABIS_DIR = os.path.join(CHAIN_DIR, "abis")
     ROUTER_ABI_FILE = os.path.join(ABIS_DIR, "router.abi")
     USDC_ABI_FILE = os.path.join(ABIS_DIR, "usdc.abi")
+
+
+class CoreDaoDir:
+    CHAIN_DIR = os.path.join(CONTRACTS_DIR, "core_dao")
+    ABIS_DIR = os.path.join(CHAIN_DIR, "abis")
+    CORE_DAO_ROUTER_ABI_FILE = os.path.join(ABIS_DIR, "core_dao_router.abi")
+    USDT_ABI_FILE = os.path.join(ABIS_DIR, "usdt.abi")
+
 
 
 OPTIMISM_ROUTER_ABI_FILE = os.path.join(CONTRACTS_DIR, "optimism", "router.abi")
