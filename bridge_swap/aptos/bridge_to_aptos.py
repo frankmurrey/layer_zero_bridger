@@ -27,7 +27,7 @@ def eth_mass_transfer_to_aptos(config_data: ConfigSchema):
                                       aptos_wallet_address=aptos_wallet,
                                       wallet_number=wallet + 1)
         time_delay = random.randint(config_data.min_delay_seconds, config_data.max_delay_seconds)
-        logger.info(f"Waiting {time_delay} seconds before next wallet bridge")
+        logger.info(f"Waiting {time_delay} seconds before next wallet bridge\n")
         time.sleep(time_delay)
 
     else:
@@ -37,7 +37,7 @@ def eth_mass_transfer_to_aptos(config_data: ConfigSchema):
                                       aptos_wallet_address=aptos_wallets[wallet],
                                       wallet_number=wallet + 1)
         time_delay = random.randint(config_data.min_delay_seconds, config_data.max_delay_seconds)
-        logger.info(f"Waiting {time_delay} seconds before next wallet bridge")
+        logger.info(f"Waiting {time_delay} seconds before next wallet bridge\n")
         time.sleep(time_delay)
 
 
@@ -59,7 +59,7 @@ def token_mass_transfer_to_aptos(config_data: ConfigSchema):
                                         aptos_wallet_address=aptos_wallet,
                                         wallet_number=wallet + 1)
         time_delay = random.randint(config_data.min_delay_seconds, config_data.max_delay_seconds)
-        logger.info(f"Waiting {time_delay} seconds before next wallet bridge")
+        logger.info(f"Waiting {time_delay} seconds before next wallet bridge\n")
         time.sleep(time_delay)
 
     else:
@@ -69,7 +69,7 @@ def token_mass_transfer_to_aptos(config_data: ConfigSchema):
                                         aptos_wallet_address=aptos_wallets[wallet],
                                         wallet_number=wallet + 1)
         time_delay = random.randint(config_data.min_delay_seconds, config_data.max_delay_seconds)
-        logger.info(f"Waiting {time_delay} seconds before next wallet bridge")
+        logger.info(f"Waiting {time_delay} seconds before next wallet bridge\n")
         time.sleep(time_delay)
 
 
@@ -180,7 +180,7 @@ class TokenBridgeManualAptos(BridgeBase):
             estimated_gas_limit = self.get_estimate_gas(transaction=allowance_txn)
 
             if self.config_data.gas_limit > estimated_gas_limit:
-                allowance_txn['gas'] = int(estimated_gas_limit + (estimated_gas_limit * 0.5))
+                allowance_txn['gas'] = estimated_gas_limit
 
             if self.config_data.test_mode is True:
                 logger.info(f"[{wallet_address}] - Estimated gas limit for {self.token_obj.name}"
@@ -230,9 +230,7 @@ class TokenBridgeManualAptos(BridgeBase):
             estimated_gas_limit = self.get_estimate_gas(transaction=txn)
 
             if self.config_data.gas_limit > estimated_gas_limit:
-                txn['gas'] = int(estimated_gas_limit + (estimated_gas_limit * 0.5))
-                current_l0_fee_value = txn['value'] - (self.config_data.gas_limit * self.get_gas_price())
-                txn['value'] = current_l0_fee_value + (estimated_gas_limit * self.get_gas_price())
+                txn['gas'] = estimated_gas_limit
 
             if self.config_data.test_mode is True:
                 logger.info(
