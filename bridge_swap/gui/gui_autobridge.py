@@ -45,6 +45,9 @@ class LayerZeroAutoBridgeGui:
                                               pad=(6, 0))
         max_amount_to_transfer_input = sg.InputText('0', key='max_amount_to_transfer', size=(20, 1), pad=(23, 0))
 
+        send_all_balance_checkbox = sg.Checkbox('Send all balance', default=False, key='send_all_balance',
+                                                enable_events=True)
+
         max_gas_limit_text = sg.Text('Max gas limit:', text_color='white', font=('Helvetica', 12))
         max_gas_limit_input = sg.InputText(default_text=3000000, key='max_gas_limit', size=(20, 1))
 
@@ -71,6 +74,7 @@ class LayerZeroAutoBridgeGui:
             [min_delay_input, max_delay_input],
             [min_amount_to_transfer_text, max_amount_to_transfer_text],
             [min_amount_to_transfer_input, max_amount_to_transfer_input],
+            [send_all_balance_checkbox],
             [max_gas_limit_text],
             [max_gas_limit_input],
             [slippage_text],
@@ -165,10 +169,22 @@ class LayerZeroAutoBridgeGui:
             'max_gas_limit': values['max_gas_limit'],
             'slippage': values['slippage'],
             'shuffle_wallets_order': values['shuffle_wallets'],
-            'test_mode': values['test_mode']
+            'test_mode': values['test_mode'],
+            'send_all_balance': values['send_all_balance']
         }
 
         return config
+
+    def send_all_balance_option(self, values, window):
+        include_option = values['send_all_balance']
+        min_bridge_input = window['min_amount_to_transfer']
+        max_bridge_input = window['max_amount_to_transfer']
+
+        if include_option:
+            max_bridge_input.update(disabled=True, value='', text_color='grey')
+        else:
+            min_bridge_input.update(disabled=False, value='', text_color='black')
+            max_bridge_input.update(disabled=False, value='', text_color='black')
 
     def run_initial_window(self):
         bridge_menu_layout = self.bridge_menu_layout()
@@ -180,10 +196,13 @@ class LayerZeroAutoBridgeGui:
             if event == sg.WINDOW_CLOSED or event == 'Cancel':
                 break
 
-            if event == 'exit_button':
+            elif event == 'exit_button':
                 break
 
-            if event == 'next_button':
+            elif event == 'send_all_balance':
+                self.send_all_balance_option(values, window)
+
+            elif event == 'next_button':
                 config_data = self.build_config_dict(values)
                 config = get_warmup_config_from_dict(config_data)
                 self.bridge_data = config
@@ -197,12 +216,12 @@ class LayerZeroAutoBridgeGui:
                 window.close()
                 window = sg.Window('Layer Zero Auto', check_info_layout, size=(600, 600))
 
-            if event == 'back_button':
+            elif event == 'back_button':
                 bridge_menu_layout = self.bridge_menu_layout()
                 window.close()
                 window = sg.Window('Layer Zero Auto', bridge_menu_layout, size=(600, 600))
 
-            if event == 'start_button':
+            elif event == 'start_button':
                 if values['agreement'] is False:
                     sg.popup('Please agree to the terms of use', title='Error', text_color='yellow')
                     continue
