@@ -27,7 +27,7 @@ def eth_mass_transfer_to_aptos(config_data: ConfigSchema):
                                       aptos_wallet_address=aptos_wallet,
                                       wallet_number=wallet + 1)
         time_delay = random.randint(config_data.min_delay_seconds, config_data.max_delay_seconds)
-        logger.info(f"Waiting {time_delay} seconds before next wallet bridge\n")
+        logger.info(f"Waiting {time_delay} seconds ({round((time_delay / 60), 2)} min) before next wallet bridge\n")
         time.sleep(time_delay)
 
     else:
@@ -37,7 +37,7 @@ def eth_mass_transfer_to_aptos(config_data: ConfigSchema):
                                       aptos_wallet_address=aptos_wallets[wallet],
                                       wallet_number=wallet + 1)
         time_delay = random.randint(config_data.min_delay_seconds, config_data.max_delay_seconds)
-        logger.info(f"Waiting {time_delay} seconds before next wallet bridge\n")
+        logger.info(f"Waiting {time_delay} seconds ({round((time_delay / 60), 2)} min) before next wallet bridge\n")
         time.sleep(time_delay)
 
 
@@ -59,7 +59,7 @@ def token_mass_transfer_to_aptos(config_data: ConfigSchema):
                                         aptos_wallet_address=aptos_wallet,
                                         wallet_number=wallet + 1)
         time_delay = random.randint(config_data.min_delay_seconds, config_data.max_delay_seconds)
-        logger.info(f"Waiting {time_delay} seconds before next wallet bridge\n")
+        logger.info(f"Waiting {time_delay} seconds ({round((time_delay / 60), 2)} min) before next wallet bridge\n")
         time.sleep(time_delay)
 
     else:
@@ -69,7 +69,7 @@ def token_mass_transfer_to_aptos(config_data: ConfigSchema):
                                         aptos_wallet_address=aptos_wallets[wallet],
                                         wallet_number=wallet + 1)
         time_delay = random.randint(config_data.min_delay_seconds, config_data.max_delay_seconds)
-        logger.info(f"Waiting {time_delay} seconds before next wallet bridge\n")
+        logger.info(f"Waiting {time_delay} seconds ({round((time_delay / 60), 2)} min) before next wallet bridge\n")
         time.sleep(time_delay)
 
 
