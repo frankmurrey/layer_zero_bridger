@@ -1,8 +1,6 @@
 import random
-import time
 
 from src.schemas.config import WarmUpConfigSchema
-from src.config import get_warmup_config
 
 from loguru import logger
 
@@ -20,6 +18,8 @@ class WarmUpRouter:
             available_chains = {}
             for chain in self.chain_balances.keys():
                 if chain not in self.chain_options:
+                    continue
+                if self.chain_balances[chain]['native'] == 0:
                     continue
                 available_stables = []
                 for stable_coin in self.stable_coin_names:

@@ -20,7 +20,7 @@ def token_mass_transfer(config_data: ConfigSchema):
         bridge_status = token_bridge.transfer(private_key=wallet, wallet_number=wallet_number)
         wallet_number += 1
 
-        if bridge_status == 'success':
+        if bridge_status is not None:
             time_delay = random.randint(config_data.min_delay_seconds, config_data.max_delay_seconds)
         else:
             time_delay = 3
@@ -136,7 +136,7 @@ class TokenBridgeManual(BridgeBase):
             logger.error(f"{wallet_number} [{source_wallet_address}] - {self.config_data.coin_to_transfer} "
                          f"({self.config_data.source_chain})"
                          f" balance not enough "
-                         f"to bridge. Balance: {wallet_token_balance}")
+                         f"to bridge. Balance: {wallet_token_balance}. Need: {token_amount_out_decimals}")
             return
 
         allowed_amount_to_bridge = self.check_allowance(wallet_address=wallet_address,
@@ -182,7 +182,7 @@ class TokenBridgeManual(BridgeBase):
                 f" [{source_wallet_address}] - {self.config_data.source_chain} → {self.config_data.target_chain} "
                 f"{token_amount_out_decimals} {self.token_obj.name} bridge transaction sent: {tx_hash.hex()}")
 
-            return "success"
+            return tx_hash.hex()
         except Exception as e:
             logger.error(f"{wallet_number} [{source_wallet_address}] - Error while sending  transaction: {e}")
             return

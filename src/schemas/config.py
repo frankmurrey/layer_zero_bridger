@@ -25,12 +25,13 @@ class ConfigSchema(BaseSettings):
 class WarmUpConfigSchema(BaseSettings):
     chain_options: list = []
     coin_to_transfer: str = ""
-    min_amount_to_transfer: float = 0
-    max_amount_to_transfer: float = 0
+    min_amount_to_transfer: Union[float, str, None] = 0
+    max_amount_to_transfer: Union[float, str, None] = 0
     min_delay_seconds: int = 0
     max_delay_seconds: int = 0
     max_gas_limit: int = 0
     slippage: float = 0
+    send_all_balance: bool = False
     shuffle_wallets_order: bool = False
     test_mode: bool = True
 

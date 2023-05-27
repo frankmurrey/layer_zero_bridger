@@ -1,6 +1,6 @@
 address_to_send: ''
 bridge_option: Stargate
-coin_to_transfer: USDT
+coin_to_transfer: USDC
 custom_gas_price: false
 gas_limit: '3000000'
 gas_price: Auto
@@ -11,6 +11,6 @@ min_delay_seconds: '0'
 send_all_balance: true
 send_to_one_address: false
 slippage: '0.5'
-source_chain: Polygon
-target_chain: BSC
+source_chain: Avalanche
+target_chain: Optimism
 test_mode: true
