@@ -296,24 +296,39 @@ class WarmUpRouteValidator:
     def check_if_amount_valid(self):
         min_amount = self.config.min_amount_to_transfer
         max_amount = self.config.max_amount_to_transfer
+        if self.config.send_all_balance is True:
+            if min_amount == 0 or min_amount == '':
+                error_msg = f'You should specify min amount'
+                return error_msg
 
-        try:
-            min_amount = float(min_amount)
-            max_amount = float(max_amount)
+            try:
+                min_amount = float(min_amount)
 
-        except ValueError:
-            error_msg = f'Amount should be float valid'
-            return error_msg
+            except ValueError:
+                error_msg = f'Amount should be float valid'
+                return error_msg
 
-        if min_amount <= 0 or max_amount <= 0:
-            error_msg = f'Min and Max transfer amount should be > 0'
-            return error_msg
+            return True
 
-        if min_amount > max_amount:
-            error_msg = f'Min amount should be less than max amount'
-            return error_msg
+        else:
 
-        return True
+            try:
+                min_amount = float(min_amount)
+                max_amount = float(max_amount)
+
+            except ValueError:
+                error_msg = f'Amount should be float valid'
+                return error_msg
+
+            if min_amount <= 0 or max_amount <= 0:
+                error_msg = f'Min and Max transfer amount should be > 0'
+                return error_msg
+
+            if min_amount > max_amount:
+                error_msg = f'Min amount should be less than max amount'
+                return error_msg
+
+            return True
 
     def check_if_gas_limit_valid(self):
         gas_limit = self.config.max_gas_limit
