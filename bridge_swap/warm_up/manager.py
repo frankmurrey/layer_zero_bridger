@@ -74,6 +74,11 @@ class WarmUpManager:
             if not chain_obj:
                 continue
 
+            native_balance_wei = self.get_eth_balance(chain_web3=chain_web3,
+                                                      wallet_address=wallet_address)
+            native_balance = chain_web3.from_wei(native_balance_wei, 'ether')
+            chain_balance['native'] = float(native_balance)
+
             if chain_obj.is_eth_available is True:
                 eth_balance_wei = self.get_eth_balance(chain_web3=chain_web3,
                                                        wallet_address=wallet_address)
@@ -130,14 +135,14 @@ class WalletManager:
                 if data is None:
                     wallet_data = self.build_wallet_data()
                     json.dump(wallet_data.dict(), f, indent=4)
-                    logger.info(f'{self.wallet_address} - wallet log file updated with no info in local directory')
+                    logger.info(f'[{self.wallet_address}] - wallet log file updated with no info in local directory')
                 else:
                     wallet_data = self.build_wallet_data(data=data)
                     json.dump(wallet_data.dict(), f, indent=4)
-                    logger.info(f'{self.wallet_address} - wallet log file updated with info in local directory')
+                    logger.info(f'[{self.wallet_address}] - wallet log file updated with info in local directory')
 
         except FileNotFoundError:
-            logger.error(f'{self.wallet_address} - wallet log file not found in local directory')
+            logger.error(f'[{self.wallet_address}] - wallet log file not found in local directory')
             self.create_wallet_log_file()
 
     def create_wallet_log_file(self):
