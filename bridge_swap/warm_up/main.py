@@ -52,10 +52,12 @@ def warm_up(config=None):
             break
 
         warmup = WarmUp(private_key=wallet_to_warm_up, config=warmup_config)
-        warmup.make_bridge()
-
-        time_delay = random.randint(warmup_config.min_delay_seconds, warmup_config.max_delay_seconds)
-        logger.info(f'Waiting ({time_delay}) seconds to start next wallet\n')
+        txn_status = warmup.make_bridge()
+        if txn_status is True:
+            time_delay = random.randint(warmup_config.min_delay_seconds, warmup_config.max_delay_seconds)
+        else:
+            time_delay = 3
+        logger.info(f"Waiting {time_delay} seconds ({round((time_delay / 60), 2)} min) before next wallet bridge\n")
         time.sleep(time_delay)
 
 
@@ -159,13 +161,26 @@ class WarmUp(WarmUpManager):
             logger.error(f'[{self.wallet_address}] - Error while getting swap route')
             return None
 
-        token_amount_to_transfer = self.get_random_amount(min_amount=self.config.min_amount_to_transfer,
-                                                          max_amount=self.config.max_amount_to_transfer)
         source_chain = swap_route['source_chain']
         target_chain = swap_route['target_chain']
         coin_to_transfer = swap_route['coin']
-        min_bridge_amount = token_amount_to_transfer
-        max_bridge_amount = token_amount_to_transfer
+        if self.config.send_all_balance is True:
+            send_all_balance = True
+            min_bridge_amount = ""
+            max_bridge_amount = ""
+        else:
+            send_all_balance = False
+            if self.chain_balances[swap_route['source_chain']][coin_to_transfer] < self.config.min_amount_to_transfer:
+                token_amount_to_transfer = self.get_random_amount(min_amount=self.config.min_amount_to_transfer,
+                                                                  max_amount=
+                                                                  self.chain_balances[swap_route['source_chain']][
+                                                                      coin_to_transfer])
+            else:
+                token_amount_to_transfer = self.get_random_amount(min_amount=self.config.min_amount_to_transfer,
+                                                                  max_amount=self.config.max_amount_to_transfer)
+            min_bridge_amount = token_amount_to_transfer
+            max_bridge_amount = token_amount_to_transfer
+
         gas_limit = self.config.max_gas_limit
         slippage = self.config.slippage
         test_mode = self.config.test_mode
@@ -178,7 +193,8 @@ class WarmUp(WarmUpManager):
             'coin_to_transfer': coin_to_transfer,
             'gas_limit': gas_limit,
             'slippage': slippage,
-            'test_mode': test_mode
+            'test_mode': test_mode,
+            'send_all_balance': send_all_balance
         }
 
         config_manual_data: ConfigSchema = get_config_from_dict(config_dict=config_dict)
@@ -202,23 +218,8 @@ class WarmUp(WarmUpManager):
 
         if self.config.coin_to_transfer.lower() == 'stable_coins':
             token_bridge = TokenBridgeManual(config=config_data)
-            required_allowance = config_data.max_bridge_amount
-            wallet_address = token_bridge.get_wallet_address(private_key=self.private_key)
-            allowed_amount_to_bridge = token_bridge.check_allowance(wallet_address=wallet_address,
-                                                                    token_contract=token_bridge.token_contract,
-                                                                    spender=token_bridge.source_chain.router_address)
-            if allowed_amount_to_bridge < required_allowance:
-                logger.warning(
-                    f"[{wallet_address}] - Not enough allowance for {token_bridge.token_obj.name},"
-                    f" approving {token_bridge.token_obj.name} to bridge")
-                make_approve = token_bridge.approve_token_transfer(private_key=self.private_key,
-                                                                   approve_amount=required_allowance,
-                                                                   wallet_address=wallet_address)
-
-                if make_approve is not True:
-                    return None
-
             tx_hash = token_bridge.transfer(private_key=self.private_key)
+
             if tx_hash:
                 wallet_data: dict = {
                     'last_bridge_status': True,
@@ -227,11 +228,13 @@ class WarmUp(WarmUpManager):
                     'last_bridge_date': datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                 }
                 wallet_manager.update_wallet_log_file(data=wallet_data)
+                return True
 
         elif self.config.coin_to_transfer.lower() == 'ethereum':
             eth_bridge = EthBridgeManual(config=config_data)
             tx_hash = eth_bridge.transfer(private_key=self.private_key)
             if tx_hash:
+
                 wallet_data: dict = {
                     'last_bridge_status': True,
                     'last_bridge_time': time.time(),
@@ -239,5 +242,6 @@ class WarmUp(WarmUpManager):
                     'last_bridge_date': datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                 }
                 wallet_manager.update_wallet_log_file(data=wallet_data)
+                return True
 
 
