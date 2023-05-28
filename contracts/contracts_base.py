@@ -14,11 +14,7 @@ class RpcBase:
         self.rpc_list = rpc_list
 
     def get_random_rpc(self):
-        try:
-            return random.choice(self.rpc_list)
-        except IndexError:
-            logger.error("Please add at least one valid RPC for every chain, follow contracts/rpcs.json")
-            exit(1)
+        return random.choice(self.rpc_list)
 
 
 class Token:
