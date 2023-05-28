@@ -5,13 +5,16 @@ from bridge_swap.base_bridge import BridgeBase
 from src.files_manager import read_evm_wallets_from_file
 from src.schemas.config import ConfigSchema
 from src.config import print_config
+from src.rpc_manager import RpcValidator
 
 from loguru import logger
 
 
 def token_mass_transfer(config_data: ConfigSchema):
-    print_config(config=config_data,
-                 delay_seconds=10)
+    print_config(config=config_data)
+
+    rpc_validator = RpcValidator()
+    rpcs = rpc_validator.validated_rpcs
 
     wallets = read_evm_wallets_from_file()
     token_bridge = TokenBridgeManual(config=config_data)
