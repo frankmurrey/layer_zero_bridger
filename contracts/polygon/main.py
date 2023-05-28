@@ -9,6 +9,7 @@ from src.paths import PolygonDir
 from src.rpc_manager import RpcValidator
 
 from web3 import Web3
+from loguru import logger
 
 with open(PolygonDir.ROUTER_ABI_FILE, "r") as file:
     ROUTER_ABI = json.load(file)
@@ -47,6 +48,12 @@ class Polygon(ContractsBase):
     def web3(self):
         rpc_validator = RpcValidator()
         rpc_list = rpc_validator.validated_rpcs
-        web3_base = RpcBase(rpc_list['Polygon'])
-        web3 = Web3(Web3.HTTPProvider(web3_base.get_random_rpc()))
+        rpc_chain_list = rpc_list[self.name]
+        if len(rpc_chain_list) == 0:
+            logger.error(f"Please provide at least one valid {self.name} RPC → contracts/rpcs.json")
+            exit(1)
+
+        web3_base = RpcBase(rpc_chain_list)
+        random_rpc = web3_base.get_random_rpc()
+        web3 = Web3(Web3.HTTPProvider(random_rpc))
         return web3
