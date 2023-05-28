@@ -2,6 +2,8 @@ import json
 
 from typing import List
 
+from loguru import logger
+
 from contracts.arbitrum.token_contracts import arbitrum_tokens
 from contracts.contracts_base import ContractsBase, Token, RpcBase
 
@@ -55,8 +57,14 @@ class Arbitrum(ContractsBase):
     def web3(self):
         rpc_validator = RpcValidator()
         rpc_list = rpc_validator.validated_rpcs
-        web3_base = RpcBase(rpc_list['Arbitrum'])
-        web3 = Web3(Web3.HTTPProvider(web3_base.get_random_rpc()))
+        rpc_chain_list = rpc_list[self.name]
+        if len(rpc_chain_list) == 0:
+            logger.error(f"Please provide at least one valid {self.name} RPC → contracts/rpcs.json")
+            exit(1)
+
+        web3_base = RpcBase(rpc_chain_list)
+        random_rpc = web3_base.get_random_rpc()
+        web3 = Web3(Web3.HTTPProvider(random_rpc))
         return web3
 
 

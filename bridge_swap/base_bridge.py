@@ -3,7 +3,8 @@ import random
 from typing import Union
 
 from src.schemas.config import ConfigSchema
-from src.bridge_manager import BridgeManager
+from src.bridge_manager import BridgeManager, get_all_chain_paths, get_class_object_from_main_file
+from src.paths import CONTRACTS_DIR
 
 from eth_account import Account
 from eth_abi import encode
@@ -14,8 +15,11 @@ class BridgeBase:
     def __init__(self, config: Union[ConfigSchema, None] = None):
         self.bridge_manager = BridgeManager(input_data=config)
         self.config_data = config
-        self.source_chain = self.bridge_manager.detect_chain(config.source_chain)
-        self.target_chain = self.bridge_manager.detect_chain(config.target_chain)
+        self.all_chain_paths = get_all_chain_paths(CONTRACTS_DIR)
+        self.source_chain = get_class_object_from_main_file(class_name=config.source_chain,
+                                                            all_chain_paths=self.all_chain_paths)
+        self.target_chain = get_class_object_from_main_file(class_name=config.target_chain,
+                                                            all_chain_paths=self.all_chain_paths)
 
         self.min_bridge_amount = config.min_bridge_amount
         self.max_bridge_amount = config.max_bridge_amount

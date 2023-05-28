@@ -8,31 +8,36 @@ from src.paths import CONTRACTS_DIR
 from src.files_manager import read_evm_wallets_from_file, read_aptos_wallets_from_file
 
 
-def find_classes_in_main_file(main_path, base_class):
-        module_name = os.path.splitext(os.path.basename(main_path))[0]
-        module_spec = importlib.util.spec_from_file_location(module_name, main_path)
-        module = importlib.util.module_from_spec(module_spec)
-        module_spec.loader.exec_module(module)
+def get_all_chain_paths(folder_path) -> dict:
+    matching_paths = {}
 
-        classes = []
-        for name in dir(module):
-            obj = getattr(module, name)
-            if isinstance(obj, type) and issubclass(obj, base_class) and obj is not base_class:
-                classes.append(obj)
+    for root, dirs, files in os.walk(folder_path):
+        for file in files:
+            if file == "__init__.py":
+                package_path = os.path.dirname(os.path.join(root, file))
+                with open(os.path.join(root, file), "r") as f:
+                    content = f.read()
+                    if "name" in content:
+                        name_value = content.split("name =", 1)[1].split("\n", 1)[0].strip().strip("'\"")
+                        matching_paths[name_value] = package_path
 
-        return classes
+    return matching_paths
 
 
-def find_classes_in_packages(directory, base_class):
-        package_dirs = [x[0] for x in os.walk(directory) if '__init__.py' in x[2]]
-        classes = []
-        for package_dir in package_dirs:
-            main_path = os.path.join(package_dir, 'main.py')
-            if os.path.isfile(main_path):
-                package_classes = find_classes_in_main_file(main_path, base_class)
-                classes.extend(package_classes)
+def get_class_object_from_main_file(class_name: str, all_chain_paths: dict):
+    for chain_name, chain_path in all_chain_paths.items():
+        if chain_name.lower() == class_name.lower():
+            main_file_path = chain_path + '\\main.py'
 
-        return classes
+            spec = importlib.util.spec_from_file_location("main", main_file_path)
+            module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(module)
+
+            if hasattr(module, class_name):
+                class_object = getattr(module, class_name)
+                return class_object()
+            else:
+                return None
 
 
 class BridgeManager:
@@ -44,16 +49,11 @@ class BridgeManager:
 
         self.aptos_wallets: list = read_aptos_wallets_from_file()
         self.evm_wallets = read_evm_wallets_from_file()
-
-    def detect_chain(self, chain_query: str):
-        all_chains_obj: list = find_classes_in_packages(CONTRACTS_DIR, ContractsBase)
-        for chain_obj in all_chains_obj:
-            chain = chain_obj()
-            if chain.name == chain_query:
-                return chain
+        self.all_chain_paths = get_all_chain_paths(CONTRACTS_DIR)
 
     def detect_coin(self, coin_query: str, chain_query: str):
-        chain = self.detect_chain(chain_query)
+        chain = get_class_object_from_main_file(class_name=chain_query,
+                                                all_chain_paths=self.all_chain_paths)
         if not chain:
             return
 
@@ -386,4 +386,3 @@ class WarmUpRouteValidator:
             return self.check_of_slippage_valid()
 
         return True
-

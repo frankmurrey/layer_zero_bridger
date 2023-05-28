@@ -10,8 +10,7 @@ from loguru import logger
 
 
 def eth_mass_transfer_to_aptos(config_data: ConfigSchema):
-    print_config(config=config_data,
-                 delay_seconds=10)
+    print_config(config=config_data)
 
     token_bridge = EthBridgeManualAptos(config=config_data)
 
@@ -42,8 +41,7 @@ def eth_mass_transfer_to_aptos(config_data: ConfigSchema):
 
 
 def token_mass_transfer_to_aptos(config_data: ConfigSchema):
-    print_config(config=config_data,
-                 delay_seconds=10)
+    print_config(config=config_data)
 
     token_bridge = TokenBridgeManualAptos(config=config_data)
 
@@ -74,8 +72,7 @@ def token_mass_transfer_to_aptos(config_data: ConfigSchema):
 
 
 def token_mass_approve_to_aptos(config_data: ConfigSchema):
-    print_config(config=config_data,
-                 delay_seconds=10)
+    print_config(config=config_data)
 
     wallets = read_evm_wallets_from_file()
     token_bridge = TokenBridgeManualAptos(config=config_data)

@@ -15,6 +15,7 @@ from src.schemas.warmup_wallet import WarmUpWalletSchema
 from src.config import get_warmup_config, get_config_from_dict, print_config
 from src.bridge_manager import BridgeManager
 from src.files_manager import read_evm_wallets_from_file, get_all_wallets_logs_data, save_summary_log_file
+from src.rpc_manager import RpcValidator
 
 from loguru import logger
 
@@ -42,11 +43,13 @@ def warm_up(config=None):
         warmup_config: WarmUpConfigSchema = config
 
     wallet_handler = WalletHandler(config=warmup_config)
-    print_config(config=warmup_config,
-                 delay_seconds=10)
+    print_config(config=warmup_config)
+
+    rpc_validator = RpcValidator()
+    rpcs = rpc_validator.validated_rpcs
 
     while True:
-        wallet_to_warm_up = wallet_handler.get_wallet(random_state=warmup_config.shuffle_wallets_order)
+        wallet_to_warm_up, end_state = wallet_handler.get_wallet(random_state=warmup_config.shuffle_wallets_order)
         if wallet_to_warm_up is None:
             logger.warning('Bridge process ended, or no more valid wallets to warm up')
             break
@@ -57,6 +60,11 @@ def warm_up(config=None):
             time_delay = random.randint(warmup_config.min_delay_seconds, warmup_config.max_delay_seconds)
         else:
             time_delay = 3
+
+        if end_state is True:
+            logger.warning('Bridge process ended, or no more valid wallets to warm up')
+            break
+
         logger.info(f"Waiting {time_delay} seconds ({round((time_delay / 60), 2)} min) before next wallet bridge\n")
         time.sleep(time_delay)
 
@@ -89,21 +97,34 @@ class WalletHandler:
                 self.all_wallet_private_keys.remove(random_wallet_pr_key)
                 # wallet_bridge_needed = self.check_wallet_bridge_needed(random_wallet_pr_key)
 
+                if len(self.all_wallet_private_keys) == 0:
+                    logger.info(f'[{self.blur_private_key(private_key=random_wallet_pr_key)}] '
+                                f'- got wallet private key for bridge,'
+                                f' random state: {random_state}')
+                    return random_wallet_pr_key, True
+
                 logger.info(f'[{self.blur_private_key(private_key=random_wallet_pr_key)}] '
                             f'- got wallet private key for bridge,'
                             f' random state: {random_state}')
-                return random_wallet_pr_key
+                return random_wallet_pr_key, False
             else:
                 if len(self.all_wallet_private_keys) == 0:
                     return None
 
-                wallet_private_key = self.all_wallet_private_keys.pop(0)
+                wallet_private_key = self.all_wallet_private_keys[0]
+                self.all_wallet_private_keys.remove(wallet_private_key)
                 # wallet_bridge_needed = self.check_wallet_bridge_needed(wallet_private_key)
+
+                if len(self.all_wallet_private_keys) == 0:
+                    logger.info(f'[{self.blur_private_key(private_key=wallet_private_key)}] '
+                                f'- got wallet private key for bridge,'
+                                f' random state: {random_state}')
+                    return wallet_private_key, True
 
                 logger.info(f'[{self.blur_private_key(private_key=wallet_private_key)}]'
                             f' - got wallet private key for bridge,'
                             f' random state: {random_state}')
-                return wallet_private_key
+                return wallet_private_key, False
 
         except IndexError as e:
             logger.error(f'Error while getting wallet: {e}')
@@ -170,7 +191,7 @@ class WarmUp(WarmUpManager):
             max_bridge_amount = ""
         else:
             send_all_balance = False
-            if self.chain_balances[swap_route['source_chain']][coin_to_transfer] < self.config.min_amount_to_transfer:
+            if self.chain_balances[swap_route['source_chain']][coin_to_transfer] < self.config.max_amount_to_transfer:
                 token_amount_to_transfer = self.get_random_amount(min_amount=self.config.min_amount_to_transfer,
                                                                   max_amount=
                                                                   self.chain_balances[swap_route['source_chain']][
