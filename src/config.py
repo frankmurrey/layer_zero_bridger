@@ -41,7 +41,8 @@ def get_warmup_config_from_dict(config_dict: dict) -> WarmUpConfigSchema:
         return WarmUpConfigSchema()
 
 
-def print_config(config, delay_seconds: int = 10):
+def print_config(config):
+    delay_seconds = 2
     logger.info(f'Config:')
     for key, value in config.__dict__.items():
         logger.warning(f'{key}: {value}')
