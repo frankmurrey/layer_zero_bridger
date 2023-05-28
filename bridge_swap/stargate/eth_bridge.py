@@ -5,14 +5,17 @@ from bridge_swap.base_bridge import BridgeBase
 from src.files_manager import read_evm_wallets_from_file
 from src.schemas.config import ConfigSchema
 from src.config import print_config
+from src.rpc_manager import RpcValidator
 
 from web3 import Web3
 from loguru import logger
 
 
 def eth_mass_transfer(config_data: ConfigSchema):
-    print_config(config=config_data,
-                 delay_seconds=10)
+    print_config(config=config_data)
+
+    rpc_validator = RpcValidator()
+    rpcs = rpc_validator.validated_rpcs
 
     eth_bridge = EthBridgeManual(config=config_data)
     wallets = read_evm_wallets_from_file()
