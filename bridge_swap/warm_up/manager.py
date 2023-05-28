@@ -5,13 +5,11 @@ import json
 import time
 
 from typing import List
-import datetime
 
 from src.schemas.config import WarmUpConfigSchema
 from src.schemas.warmup_wallet import WarmUpWalletSchema
-from src.bridge_manager import find_classes_in_packages
+from src.bridge_manager import get_all_chain_paths, get_class_object_from_main_file
 from src.paths import CONTRACTS_DIR, WALLET_LOGS_DIR
-from contracts.contracts_base import ContractsBase
 
 from loguru import logger
 from eth_account import Account
@@ -19,18 +17,13 @@ from eth_account import Account
 
 class WarmUpManager:
     def __init__(self, config: WarmUpConfigSchema):
-        self.all_chains_obj: list = find_classes_in_packages(CONTRACTS_DIR, ContractsBase)
+        self.all_chain_paths = get_all_chain_paths(CONTRACTS_DIR)
         self.chain_options: List[str] = config.chain_options
         self.stable_coin_names: List[str] = ['USDC', 'USDT', 'DAI']
 
-    def detect_chain(self, chain_query: str):
-        for chain_obj in self.all_chains_obj:
-            chain = chain_obj()
-            if chain.name.lower() == chain_query.lower():
-                return chain
-
     def detect_coin(self, coin_query: str, chain_query: str):
-        chain = self.detect_chain(chain_query)
+        chain = get_class_object_from_main_file(class_name=chain_query,
+                                                all_chain_paths=self.all_chain_paths)
         if not chain:
             return
 
@@ -40,7 +33,7 @@ class WarmUpManager:
 
     def get_wallet_address(self, private_key: str):
         try:
-            num_of_chains = len(self.all_chains_obj)
+            num_of_chains = len(self.all_chain_paths)
             chain_index = random.randint(0, num_of_chains - 1)
             account = Account.from_key(private_key)
             return account.address
@@ -68,7 +61,8 @@ class WarmUpManager:
         logger.info(f'[{wallet_address}] - Fetching wallet balances')
         wallet_chain_balances = {"wallet_address": wallet_address}
         for chain in self.chain_options:
-            chain_obj = self.detect_chain(chain)
+            chain_obj = get_class_object_from_main_file(class_name=chain,
+                                                        all_chain_paths=self.all_chain_paths)
             chain_web3 = chain_obj.web3
             chain_balance = {}
             if not chain_obj:
@@ -78,11 +72,10 @@ class WarmUpManager:
                                                       wallet_address=wallet_address)
             native_balance = chain_web3.from_wei(native_balance_wei, 'ether')
             chain_balance['native'] = float(native_balance)
+            time.sleep(0.2)
 
             if chain_obj.is_eth_available is True:
-                eth_balance_wei = self.get_eth_balance(chain_web3=chain_web3,
-                                                       wallet_address=wallet_address)
-                eth_balance = chain_web3.from_wei(eth_balance_wei, 'ether')
+                eth_balance = chain_web3.from_wei(native_balance_wei, 'ether')
                 chain_balance['Ethereum'] = float(eth_balance)
 
             for stable_coin in self.stable_coin_names:
@@ -92,6 +85,7 @@ class WarmUpManager:
                 stable_coin_balance_wei = self.get_token_balance(chain_web3=chain_web3,
                                                                  token_obj=coin_obj,
                                                                  wallet_address=wallet_address)
+                time.sleep(0.2)
                 if stable_coin_balance_wei == 0:
                     continue
                 token_contract = chain_web3.eth.contract(address=coin_obj.address, abi=coin_obj.abi)
