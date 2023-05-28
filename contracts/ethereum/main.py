@@ -7,6 +7,7 @@ from contracts.contracts_base import ContractsBase, Token, RpcBase
 from src.paths import EthereumDir
 
 from web3 import Web3
+from loguru import logger
 
 from src.rpc_manager import RpcValidator
 
@@ -54,7 +55,13 @@ class Ethereum(ContractsBase):
     def web3(self):
         rpc_validator = RpcValidator()
         rpc_list = rpc_validator.validated_rpcs
-        web3_base = RpcBase(rpc_list['Ethereum'])
-        web3 = Web3(Web3.HTTPProvider(web3_base.get_random_rpc()))
+        rpc_chain_list = rpc_list[self.name]
+        if len(rpc_chain_list) == 0:
+            logger.error(f"Please provide at least one valid {self.name} RPC → contracts/rpcs.json")
+            exit(1)
+
+        web3_base = RpcBase(rpc_chain_list)
+        random_rpc = web3_base.get_random_rpc()
+        web3 = Web3(Web3.HTTPProvider(random_rpc))
         return web3
 
