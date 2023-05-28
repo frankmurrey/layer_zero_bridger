@@ -5,13 +5,16 @@ from bridge_swap.base_bridge import BridgeBase
 from src.files_manager import read_evm_wallets_from_file
 from src.schemas.config import ConfigSchema
 from src.config import get_config, print_config
+from src.rpc_manager import RpcValidator
 
 from loguru import logger
 
 
 def core_mass_transfer(config_data: ConfigSchema):
-    print_config(config=config_data,
-                 delay_seconds=10)
+    print_config(config=config_data)
+
+    rpc_validator = RpcValidator()
+    rpcs = rpc_validator.validated_rpcs
 
     wallets = read_evm_wallets_from_file()
     token_bridge = CoreDaoBridger(config=config_data)
@@ -44,6 +47,7 @@ class CoreDaoBridger(BridgeBase):
         except AttributeError:
             logger.error(f"Bridge of {self.config_data.coin_to_transfer} is not supported between"
                          f" {self.config_data.source_chain} and {self.config_data.target_chain}")
+
 
     def get_allowance_amount_for_token(self, private_key):
         wallet_address = self.get_wallet_address(private_key=private_key,)
@@ -109,6 +113,10 @@ class CoreDaoBridger(BridgeBase):
 
         if self.config_data.send_all_balance is True:
             token_amount_out = wallet_token_balance_wei
+            if token_amount_out == 0:
+                logger.error(f"{wallet_number} [{source_wallet_address}] - {self.config_data.coin_to_transfer} "
+                             f"({self.config_data.source_chain}) balance is 0")
+                return
         else:
             token_amount_out = self.get_random_amount_out(min_amount=self.min_bridge_amount,
                                                           max_amount=self.max_bridge_amount,
