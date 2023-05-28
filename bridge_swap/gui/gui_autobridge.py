@@ -1,7 +1,6 @@
 from src.files_manager import read_evm_wallets_from_file
 from src.bridge_manager import WarmUpRouteValidator
 from src.config import get_warmup_config_from_dict
-from src.rpc_manager import RpcValidator
 
 from bridge_swap.warm_up.main import initialize_all_wallets, warm_up, save_summary_log_file
 
@@ -227,12 +226,6 @@ class LayerZeroAutoBridgeGui:
                     continue
 
                 window.close()
-                rpc_validator = RpcValidator()
-                rpc_status = rpc_validator.check_if_required_rpcs_available(chain_options=self.bridge_data.chain_options)
-
-                if rpc_status is not True:
-                    exit(1)
-
                 initialize_all_wallets()
                 warm_up(config=self.bridge_data)
                 save_summary_log_file()
