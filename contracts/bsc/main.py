@@ -11,6 +11,9 @@ from web3 import Web3
 
 from src.rpc_manager import RpcValidator
 
+from loguru import logger
+
+
 with open(BscDir.ROUTER_ABI_FILE, "r") as file:
     ROUTER_ABI = json.load(file)
 
@@ -24,7 +27,7 @@ with open(BscDir.CORE_DAO_ROUTER_ABI_FILE, "r") as file:
     CORE_DAO_ROUTER_ABI = json.load(file)
 
 
-class Bsc(ContractsBase):
+class BSC(ContractsBase):
     def __init__(self):
         super().__init__()
         self.token_contracts: List[Token] = bsc_tokens
@@ -51,11 +54,16 @@ class Bsc(ContractsBase):
         self.core_dao_router_abi = CORE_DAO_ROUTER_ABI
         self.core_dao_router_contract = web3.eth.contract(address=self.core_dao_router_address, abi=self.core_dao_router_abi)
 
-
     @property
     def web3(self):
         rpc_validator = RpcValidator()
         rpc_list = rpc_validator.validated_rpcs
-        web3_base = RpcBase(rpc_list['BSC'])
-        web3 = Web3(Web3.HTTPProvider(web3_base.get_random_rpc()))
+        rpc_chain_list = rpc_list[self.name]
+        if len(rpc_chain_list) == 0:
+            logger.error(f"Please provide at least one valid {self.name} RPC → contracts/rpcs.json")
+            exit(1)
+
+        web3_base = RpcBase(rpc_chain_list)
+        random_rpc = web3_base.get_random_rpc()
+        web3 = Web3(Web3.HTTPProvider(random_rpc))
         return web3
