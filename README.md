@@ -1,5 +1,6 @@
 # Manual bridger
 <a href="https://ibb.co/QYZxgcJ"><img src="https://i.ibb.co/mhmPjBR/manual-menu.png" alt="manual-menu" border="0"></a>
+
 Ручной режим, в котором все акки прогонит с выставленными настройками.
 ## Функционал (manual bridger)
 
@@ -23,6 +24,7 @@
  - **Test mode** - Можно запустить в тестовом режиме, скрипт проверит корректность транзы и покажет estimate gas
 ## Warmup Bridger
 <a href="https://imgbb.com/"><img src="https://i.ibb.co/JCBQxc3/auto-menu.png" alt="auto-menu" border="0"></a>
+
 Режим прогрева, скрипт сам выберет из указанных вами сетей две рандомные в которых будет бриджить. Для каждого кошелька он будет выбирать рандомный путь, в зависимости от наличия баланса в указанном диапазоне бриджа *min и max amount to bridge*.
 ## Функционал (warmup bridger)
  - Поддерживаемые сети: *Arbitrum, Optimism, Avalanche, BSC,  Ethereum (mainnet), Polygon, Fantom*
