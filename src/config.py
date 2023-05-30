@@ -3,7 +3,10 @@ import time
 from src.files_manager import load_config, load_warmup_config
 from src.schemas.config import ConfigSchema, WarmUpConfigSchema
 
+from sys import stderr
+
 from loguru import logger
+
 
 CONFIG_FILE_DATA: dict = load_config()
 WARMUP_CONFIG_FILE_DATA: dict = load_warmup_config()
@@ -42,7 +45,7 @@ def get_warmup_config_from_dict(config_dict: dict) -> WarmUpConfigSchema:
 
 
 def print_config(config):
-    delay_seconds = 2
+    delay_seconds = 10
     logger.info(f'Config:')
     for key, value in config.__dict__.items():
         logger.warning(f'{key}: {value}')
