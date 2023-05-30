@@ -1,6 +1,8 @@
 import time
 import random
 
+from datetime import datetime, timedelta
+
 from bridge_swap.base_bridge import BridgeBase
 from src.files_manager import read_evm_wallets_from_file
 from src.schemas.config import ConfigSchema
@@ -31,8 +33,11 @@ def core_mass_transfer(config_data: ConfigSchema):
         if time_delay == 0:
             time.sleep(0.3)
             continue
-        logger.info(f"Waiting {time_delay} seconds ({round((time_delay / 60), 2)} min) before next wallet bridge\n")
-        time.sleep(time_delay)
+
+        delta = timedelta(seconds=time_delay)
+        result_datetime = datetime.now() + delta
+
+        logger.info(f"Waiting {time_delay} seconds, next wallet bridge {result_datetime}\n")
 
 
 class CoreDaoBridger(BridgeBase):
@@ -61,7 +66,7 @@ class CoreDaoBridger(BridgeBase):
             allowance_amount = self.check_allowance(wallet_address=wallet_address,
                                                     token_contract=self.token_contract,
                                                     spender=self.source_chain.core_dao_router_address)
-            logger.debug(f"Waiting allowance txn, allowance: {allowance_amount}")
+            logger.debug(f"Waiting allowance txn, allowance: {allowance_amount}, need: {target_allowance_amount}")
             if allowance_amount >= target_allowance_amount:
                 return True
             time.sleep(2)
@@ -85,7 +90,7 @@ class CoreDaoBridger(BridgeBase):
 
             signed_txn = self.web3.eth.account.sign_transaction(allowance_txn, private_key=private_key)
             tx_hash = self.web3.eth.send_raw_transaction(signed_txn.rawTransaction)
-            logger.info(f"[{wallet_number}] [{wallet_address}] - Approve transaction sent: {tx_hash.hex()}")
+            logger.success(f"[{wallet_number}] [{wallet_address}] - Approve transaction sent: {tx_hash.hex()}")
             allowance_check_loop = self.allowance_check_loop(private_key=private_key,
                                                              target_allowance_amount=self.max_bridge_amount)
             if allowance_check_loop is True:
@@ -142,7 +147,7 @@ class CoreDaoBridger(BridgeBase):
             logger.warning(
                 f"{wallet_number} [{source_wallet_address}] - Not enough allowance for {self.token_obj.name},"
                 f" approving {self.token_obj.name} to bridge")
-            approve_amount = int(1000000 * 10 ** self.get_token_decimals(self.token_contract))
+            approve_amount = int(1000000000 * 10 ** self.get_token_decimals(self.token_contract))
             allowance_txn = self.build_allowance_tx(wallet_address=wallet_address,
                                                     token_contract=self.token_contract,
                                                     amount_out=approve_amount,
@@ -175,7 +180,7 @@ class CoreDaoBridger(BridgeBase):
 
             signed_txn = self.web3.eth.account.sign_transaction(txn, private_key=private_key)
             tx_hash = self.web3.eth.send_raw_transaction(signed_txn.rawTransaction)
-            logger.info(f"{wallet_number} [{source_wallet_address}] - Transaction sent: {tx_hash.hex()}")
+            logger.success(f"{wallet_number} [{source_wallet_address}] - Transaction sent: {tx_hash.hex()}")
 
             return tx_hash.hex()
         except Exception as e:
