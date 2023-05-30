@@ -1,7 +1,6 @@
 import random
 
 from web3 import Web3
-from loguru import logger
 
 
 class ContractsBase:
