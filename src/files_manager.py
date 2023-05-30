@@ -26,7 +26,6 @@ def read_aptos_wallets_from_file():
                 return []
             return [x for x in wallets_from_txt if x and x.strip() and len(x) == 66]
     except FileNotFoundError:
-        logger.error("aptos_addresses.txt file not found, skip this message if you are not using aptos bridge")
         return []
 
 

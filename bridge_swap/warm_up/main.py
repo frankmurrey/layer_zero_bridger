@@ -65,8 +65,10 @@ def warm_up(config=None):
             logger.warning('Bridge process ended, or no more valid wallets to warm up')
             break
 
-        logger.info(f"Waiting {time_delay} seconds ({round((time_delay / 60), 2)} min) before next wallet bridge\n")
-        time.sleep(time_delay)
+        delta = datetime.timedelta(seconds=time_delay)
+        result_datetime = datetime.datetime.now() + delta
+
+        logger.info(f"Waiting {time_delay} seconds, next wallet bridge {result_datetime}\n")
 
 
 class WalletHandler:

@@ -1,6 +1,8 @@
 import random
 import time
 
+from datetime import datetime, timedelta
+
 from bridge_swap.base_bridge import BridgeBase
 from src.files_manager import read_evm_wallets_from_file
 from src.schemas.config import ConfigSchema
@@ -32,8 +34,11 @@ def eth_mass_transfer(config_data: ConfigSchema):
         if time_delay == 0:
             time.sleep(0.3)
             continue
-        logger.info(f"Waiting {time_delay} seconds ({round((time_delay / 60), 2)} min) before next wallet bridge\n")
-        time.sleep(time_delay)
+
+        delta = timedelta(seconds=time_delay)
+        result_datetime = datetime.now() + delta
+
+        logger.info(f"Waiting {time_delay} seconds, next wallet bridge {result_datetime}\n")
 
 
 class EthBridgeManual(BridgeBase):
@@ -79,7 +84,7 @@ class EthBridgeManual(BridgeBase):
 
             signed_txn = self.web3.eth.account.sign_transaction(txn, private_key=private_key)
             tx_hash = self.web3.eth.send_raw_transaction(signed_txn.rawTransaction)
-            logger.info(f"[{wallet_number}] [{source_wallet_address}] - Transaction sent: {tx_hash.hex()}")
+            logger.success(f"[{wallet_number}] [{source_wallet_address}] - Transaction sent: {tx_hash.hex()}")
 
             return tx_hash.hex()
         except Exception as e:
