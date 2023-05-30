@@ -92,6 +92,10 @@ class BridgeBase:
         else:
             if self.config_data.source_chain.lower() == 'arbitrum':
                 return int(self.web3.eth.gas_price * 1.35)
+            elif self.config_data.source_chain.lower() == 'polygon':
+                return int(self.web3.eth.gas_price * 1.35)
+            elif self.config_data.source_chain.lower() == 'avalanche':
+                return int(self.web3.eth.gas_price * 1.15)
             else:
                 return self.web3.eth.gas_price
 
@@ -207,7 +211,7 @@ class BridgeBase:
             adapter_params
         ).build_transaction({
             'from': source_wallet_address,
-            'value': fee,
+            'value': int(fee * 1.1),
             'gas': gas_limit,
             'gasPrice': gas_price,
             'nonce': self.get_wallet_nonce(wallet_address=source_wallet_address),
