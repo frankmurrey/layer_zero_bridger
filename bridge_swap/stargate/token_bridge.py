@@ -1,6 +1,8 @@
 import time
 import random
 
+from datetime import datetime, timedelta
+
 from bridge_swap.base_bridge import BridgeBase
 from src.files_manager import read_evm_wallets_from_file
 from src.schemas.config import ConfigSchema
@@ -31,7 +33,11 @@ def token_mass_transfer(config_data: ConfigSchema):
         if time_delay == 0:
             time.sleep(0.3)
             continue
-        logger.info(f"Waiting {time_delay} seconds ({round((time_delay / 60), 2)} min) before next wallet bridge\n")
+
+        delta = timedelta(seconds=time_delay)
+        result_datetime = datetime.now() + delta
+
+        logger.info(f"Waiting {time_delay} seconds, next wallet bridge {result_datetime}\n")
         time.sleep(time_delay)
 
 
@@ -56,20 +62,24 @@ class TokenBridgeManual(BridgeBase):
 
     def allowance_check_loop(self, private_key, target_allowance_amount):
         wallet_address = self.get_wallet_address(private_key=private_key)
+        start_time = time.time()
         while True:
+            if time.time() - start_time > 180:
+                return False
             allowance_amount = self.check_allowance(wallet_address=wallet_address,
                                                     token_contract=self.token_contract,
                                                     spender=self.source_chain.router_address)
-            logger.debug(f"Waiting allowance txn, allowance: {allowance_amount}")
+            logger.debug(f"Waiting allowance txn, allowance: {allowance_amount}, need: {target_allowance_amount}")
             if allowance_amount >= target_allowance_amount:
                 return True
             time.sleep(2)
 
     def approve_token_transfer(self, private_key, wallet_address, approve_amount,
                                wallet_number=None):
+        amount_to_approve = int((10 ** 8) * 10 ** self.get_token_decimals(self.token_contract))
         allowance_txn = self.build_allowance_tx(wallet_address=wallet_address,
                                                 token_contract=self.token_contract,
-                                                amount_out=approve_amount,
+                                                amount_out=amount_to_approve,
                                                 spender=self.source_chain.router_address)
         try:
             estimated_gas_limit = self.get_estimate_gas(transaction=allowance_txn)
@@ -89,7 +99,7 @@ class TokenBridgeManual(BridgeBase):
 
             signed_txn = self.web3.eth.account.sign_transaction(allowance_txn, private_key=private_key)
             tx_hash = self.web3.eth.send_raw_transaction(signed_txn.rawTransaction)
-            logger.info(f"{wallet_number} [{wallet_address}] - Approve transaction sent: {tx_hash.hex()}")
+            logger.success(f"{wallet_number} [{wallet_address}] - Approve transaction sent: {tx_hash.hex()}")
             time.sleep(0.2)
 
             allowance_check_loop = self.allowance_check_loop(private_key=private_key,
@@ -98,6 +108,9 @@ class TokenBridgeManual(BridgeBase):
                 logger.info(f"{wallet_number} [{wallet_address}] - Approve transaction confirmed")
                 time.sleep(2)
                 return True
+            else:
+                logger.error(f"{wallet_number} [{wallet_address}] - Approve transaction took too long, aborting transfer")
+                return False
         except Exception as e:
             logger.error(f"{wallet_number} [{wallet_address}] - Error while approving txn: {e}")
             return False
@@ -150,7 +163,7 @@ class TokenBridgeManual(BridgeBase):
             logger.warning(
                 f"{wallet_number} [{source_wallet_address}] - Not enough allowance for {self.token_obj.name},"
                 f" approving {self.token_obj.name} to bridge")
-            approve_amount = int(1000000 * 10 ** self.get_token_decimals(self.token_contract))
+            approve_amount = int(1000000000 * 10 ** self.get_token_decimals(self.token_contract))
             approve_txn = self.approve_token_transfer(private_key=private_key,
                                                       wallet_number=wallet_number,
                                                       wallet_address=wallet_address,
@@ -180,7 +193,7 @@ class TokenBridgeManual(BridgeBase):
 
             signed_txn = self.web3.eth.account.sign_transaction(txn, private_key=private_key)
             tx_hash = self.web3.eth.send_raw_transaction(signed_txn.rawTransaction)
-            logger.info(
+            logger.success(
                 f"{wallet_number}"
                 f" [{source_wallet_address}] - {self.config_data.source_chain} → {self.config_data.target_chain} "
                 f"{token_amount_out_decimals} {self.token_obj.name} bridge transaction sent: {tx_hash.hex()}")
