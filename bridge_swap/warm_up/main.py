@@ -70,6 +70,8 @@ def warm_up(config=None):
 
         logger.info(f"Waiting {time_delay} seconds, next wallet bridge {result_datetime}\n")
 
+        time.sleep(time_delay)
+
 
 class WalletHandler:
     def __init__(self, config: WarmUpConfigSchema):
