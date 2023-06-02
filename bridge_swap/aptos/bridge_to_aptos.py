@@ -29,6 +29,10 @@ def eth_mass_transfer_to_aptos(config_data: ConfigSchema):
                                                       aptos_wallet_address=aptos_wallet,
                                                       wallet_number=wallet + 1)
 
+            if wallet == wallets_amount - 1:
+                logger.info(f"Bridge process is finished\n")
+                break
+
             if bridge_status is not None:
                 time_delay = random.randint(config_data.min_delay_seconds, config_data.max_delay_seconds)
             else:
@@ -50,6 +54,10 @@ def eth_mass_transfer_to_aptos(config_data: ConfigSchema):
             bridge_status = token_bridge.eth_transfer(private_key=evm_wallets[wallet],
                                                       aptos_wallet_address=aptos_wallets[wallet],
                                                       wallet_number=wallet + 1)
+
+            if wallet == wallets_amount - 1:
+                logger.info(f"Bridge process is finished\n")
+                break
 
             if bridge_status is not None:
                 time_delay = random.randint(config_data.min_delay_seconds, config_data.max_delay_seconds)
@@ -86,6 +94,11 @@ def token_mass_transfer_to_aptos(config_data: ConfigSchema):
             bridge_status = token_bridge.token_transfer(private_key=evm_wallets[wallet],
                                                         aptos_wallet_address=aptos_wallet,
                                                         wallet_number=wallet + 1)
+
+            if wallet == wallets_amount - 1:
+                logger.info(f"Bridge process is finished\n")
+                break
+
             if bridge_status is not None:
                 time_delay = random.randint(config_data.min_delay_seconds, config_data.max_delay_seconds)
             else:
@@ -104,8 +117,13 @@ def token_mass_transfer_to_aptos(config_data: ConfigSchema):
         wallets_amount = min(len(evm_wallets), len(aptos_wallets))
         for wallet in range(wallets_amount):
             bridge_status = token_bridge.token_transfer(private_key=evm_wallets[wallet],
-                                        aptos_wallet_address=aptos_wallets[wallet],
-                                        wallet_number=wallet + 1)
+                                                        aptos_wallet_address=aptos_wallets[wallet],
+                                                        wallet_number=wallet + 1)
+
+            if wallet == wallets_amount - 1:
+                logger.info(f"Bridge process is finished\n")
+                break
+
             if bridge_status is not None:
                 time_delay = random.randint(config_data.min_delay_seconds, config_data.max_delay_seconds)
             else:
@@ -114,6 +132,7 @@ def token_mass_transfer_to_aptos(config_data: ConfigSchema):
             if time_delay == 0:
                 time.sleep(0.3)
                 continue
+
 
             delta = timedelta(seconds=time_delay)
             result_datetime = datetime.now() + delta
@@ -276,7 +295,7 @@ class TokenBridgeManualAptos(BridgeBase):
         if wallet_number is None:
             wallet_number = ""
         else:
-            wallet_number = f"{wallet_number}"
+            wallet_number = f"[{wallet_number}]"
 
         if self.config_data.send_to_one_address is True:
             dst_wallet_address = self.web3.to_bytes(hexstr=self.config_data.address_to_send)
