@@ -21,8 +21,14 @@ def token_mass_transfer(config_data: ConfigSchema):
     wallets = read_evm_wallets_from_file()
     token_bridge = TokenBridgeManual(config=config_data)
     wallet_number = 1
+    wallets_amount = len(wallets)
     for wallet in wallets:
         bridge_status = token_bridge.transfer(private_key=wallet, wallet_number=wallet_number)
+
+        if wallet_number == wallets_amount:
+            logger.info(f"Bridge process is finished\n")
+            break
+
         wallet_number += 1
 
         if bridge_status is not None:
