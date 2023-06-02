@@ -22,8 +22,14 @@ def eth_mass_transfer(config_data: ConfigSchema):
     eth_bridge = EthBridgeManual(config=config_data)
     wallets = read_evm_wallets_from_file()
     wallet_number = 1
+    wallets_amount = len(wallets)
     for wallet in wallets:
         bridge_status = eth_bridge.transfer(private_key=wallet, wallet_number=wallet_number)
+
+        if wallet_number == wallets_amount:
+            logger.info(f"Bridge process is finished\n")
+            break
+
         wallet_number += 1
 
         if bridge_status is not None:
@@ -39,7 +45,7 @@ def eth_mass_transfer(config_data: ConfigSchema):
         result_datetime = datetime.now() + delta
 
         logger.info(f"Waiting {time_delay} seconds, next wallet bridge {result_datetime}\n")
-
+        time.sleep(time_delay)
 
 class EthBridgeManual(BridgeBase):
     def __init__(self, config: ConfigSchema):
