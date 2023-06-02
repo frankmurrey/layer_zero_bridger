@@ -21,8 +21,14 @@ def core_mass_transfer(config_data: ConfigSchema):
     wallets = read_evm_wallets_from_file()
     token_bridge = CoreDaoBridger(config=config_data)
     wallet_number = 1
+    wallets_amount = len(wallets)
     for wallet in wallets:
         bridge_status = token_bridge.transfer(private_key=wallet, wallet_number=wallet_number)
+
+        if wallet_number == wallets_amount:
+            logger.info(f"Bridge process is finished\n")
+            break
+
         wallet_number += 1
 
         if bridge_status is not None:
@@ -38,6 +44,7 @@ def core_mass_transfer(config_data: ConfigSchema):
         result_datetime = datetime.now() + delta
 
         logger.info(f"Waiting {time_delay} seconds, next wallet bridge {result_datetime}\n")
+        time.sleep(time_delay)
 
 
 class CoreDaoBridger(BridgeBase):
@@ -71,8 +78,7 @@ class CoreDaoBridger(BridgeBase):
                 return True
             time.sleep(2)
 
-    def approve_token_transfer(self, allowance_txn, private_key, wallet_address, wallet_number=None):
-        try:
+    def approve_token_transfer(self, allowance_txn, private_key, wallet_address, approve_amount, wallet_number=None):
             estimated_gas_limit = self.get_estimate_gas(transaction=allowance_txn)
 
             if self.config_data.gas_limit > estimated_gas_limit:
@@ -83,23 +89,15 @@ class CoreDaoBridger(BridgeBase):
                             f" approve: {estimated_gas_limit}")
                 return
 
-            if wallet_number is None:
-                wallet_number = ""
-            else:
-                wallet_number = f"[{wallet_number}]"
-
             signed_txn = self.web3.eth.account.sign_transaction(allowance_txn, private_key=private_key)
             tx_hash = self.web3.eth.send_raw_transaction(signed_txn.rawTransaction)
             logger.success(f"[{wallet_number}] [{wallet_address}] - Approve transaction sent: {tx_hash.hex()}")
             allowance_check_loop = self.allowance_check_loop(private_key=private_key,
-                                                             target_allowance_amount=self.max_bridge_amount)
+                                                             target_allowance_amount=approve_amount)
             if allowance_check_loop is True:
                 logger.info(f"{wallet_number} [{wallet_address}] - Approve transaction confirmed")
                 time.sleep(2)
                 return True
-        except Exception as e:
-            logger.error(f"{wallet_number} [{wallet_address}] - Error while sending approval transaction: {e}")
-            return False
 
     def transfer(self, private_key, wallet_number):
         if not self.token_obj:
@@ -155,7 +153,8 @@ class CoreDaoBridger(BridgeBase):
             approve_txn = self.approve_token_transfer(allowance_txn=allowance_txn,
                                                       private_key=private_key,
                                                       wallet_number=wallet_number,
-                                                      wallet_address=wallet_address)
+                                                      wallet_address=wallet_address,
+                                                      approve_amount=token_amount_out)
             if approve_txn is not True:
                 return
         else:
