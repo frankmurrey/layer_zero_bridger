@@ -1,8 +1,7 @@
 {
   "Arbitrum": [
     "https://1rpc.io/arb",
-    "https://arbitrum-one.public.blastapi.io",
-    "https://arb1.croswap.com/rpc"
+    "https://arbitrum-one.public.blastapi.io"
   ],
   "Avalanche": [
     "https://rpc.ankr.com/avalanche"
