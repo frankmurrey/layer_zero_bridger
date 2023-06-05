@@ -1,8 +1,6 @@
 import os
 import importlib.util
 
-from contracts.contracts_base import ContractsBase
-
 from src.schemas.config import ConfigSchema, WarmUpConfigSchema
 from src.paths import CONTRACTS_DIR
 from src.files_manager import read_evm_wallets_from_file, read_aptos_wallets_from_file
@@ -45,7 +43,8 @@ class BridgeManager:
         self.input_data = input_data
         self.source_chain = self.input_data.source_chain
         self.target_chain = self.input_data.target_chain
-        self.coin_to_transfer = self.input_data.coin_to_transfer
+        self.src_coin_to_transfer = self.input_data.source_coin_to_transfer
+        self.target_coin_to_transfer = self.input_data.target_coin_to_transfer
 
         self.aptos_wallets: list = read_aptos_wallets_from_file()
         self.evm_wallets = read_evm_wallets_from_file()
@@ -80,17 +79,21 @@ class BridgeManager:
                 error_msg = f'Number of EVM wallets and Aptos wallets must be the same'
                 return error_msg
 
-        if self.coin_to_transfer == 'USDC':
+        if self.src_coin_to_transfer != self.target_coin_to_transfer:
+            error_msg = f'Coin to transfer should be the same as coin to receive for this bridge'
+            return error_msg
+
+        if self.src_coin_to_transfer == 'USDC':
             if self.source_chain not in usdc_aptos_eligible_chains:
                 error_msg = f'USDC bridge from {self.source_chain} to {self.target_chain} is not supported'
                 return error_msg
 
-        if self.coin_to_transfer == 'USDT':
+        if self.src_coin_to_transfer == 'USDT':
             if self.source_chain not in usdt_aptos_eligible_chains:
                 error_msg = f'USDT bridge from {self.source_chain} to {self.target_chain} is not supported'
                 return error_msg
 
-        if self.coin_to_transfer == 'Ethereum':
+        if self.src_coin_to_transfer == 'Ethereum':
             if self.source_chain not in eth_aptos_eligible_chains:
                 error_msg = f'Ethereum bridge from {self.source_chain} to {self.target_chain} is not supported'
                 return error_msg
@@ -107,7 +110,7 @@ class BridgeManager:
                 error_msg = f'Invalid address to send'
                 return error_msg
 
-        if self.coin_to_transfer == 'Ethereum':
+        if self.src_coin_to_transfer == 'Ethereum' or self.target_coin_to_transfer == 'Ethereum':
             if self.target_chain not in eth_eligible_chains:
                 error_msg = f'Ethereum bridge from {self.source_chain} to {self.target_chain} is not supported'
                 return error_msg
@@ -116,14 +119,28 @@ class BridgeManager:
                 error_msg = f'Ethereum bridge from {self.source_chain} to {self.target_chain} is not supported'
                 return error_msg
 
-        if self.coin_to_transfer == 'USDC':
-            error_msg = f'USDC bridge from {self.source_chain} to {self.target_chain} is not supported'
+            if self.target_coin_to_transfer != 'Ethereum' or self.src_coin_to_transfer != 'Ethereum':
+                error_msg = f'Ethereum coin can only be transferred to Ethereum coin'
+                return error_msg
+
+        if self.src_coin_to_transfer == 'USDC':
+            error_msg = f'USDC bridge from {self.source_chain} is not supported'
             if self.source_chain not in usdc_eligible_chains:
                 return error_msg
 
-        if self.coin_to_transfer == 'USDT':
+        if self.src_coin_to_transfer == 'USDT':
             if self.source_chain not in usdt_eligible_chains:
-                error_msg = f'USDT bridge from {self.source_chain} to {self.target_chain} is not supported'
+                error_msg = f'USDT bridge from {self.source_chain} is not supported'
+                return error_msg
+
+        if self.target_coin_to_transfer == 'USDC':
+            error_msg = f'USDC bridge to {self.target_chain} is not supported'
+            if self.target_chain not in usdc_eligible_chains:
+                return error_msg
+
+        if self.target_coin_to_transfer == 'USDT':
+            error_msg = f'USDT bridge to {self.target_chain} is not supported'
+            if self.target_chain not in usdt_eligible_chains:
                 return error_msg
 
         return True
@@ -137,12 +154,20 @@ class BridgeManager:
                 error_msg = f'Invalid address to send'
                 return error_msg
 
-        if self.coin_to_transfer == 'USDC':
+        if self.src_coin_to_transfer == '':
+            error_msg = f'Coin to transfer should be specified'
+            return error_msg
+
+        if self.src_coin_to_transfer != self.target_coin_to_transfer:
+            error_msg = f'Coin to transfer should be the same as coin to receive for this bridge'
+            return error_msg
+
+        if self.src_coin_to_transfer == 'USDC':
             error_msg = f'USDC bridge from {self.source_chain} to {self.target_chain} is not supported'
             if self.source_chain not in usdc_eligible_chains:
                 return error_msg
 
-        if self.coin_to_transfer == 'USDT':
+        if self.src_coin_to_transfer == 'USDT':
             if self.source_chain not in usdt_eligible_chains:
                 error_msg = f'USDT bridge from {self.source_chain} to {self.target_chain} is not supported'
                 return error_msg
