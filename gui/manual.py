@@ -391,7 +391,7 @@ class LayerZeroManualGui:
                 bridge_manager = BridgeManager(config_dict)
                 error_message = bridge_manager.check_if_route_eligible()
 
-                if bridge_manager.check_if_route_eligible() is not True:
+                if error_message is not True:
                     sg.popup(error_message, title='Error', text_color='yellow')
                     continue
 
