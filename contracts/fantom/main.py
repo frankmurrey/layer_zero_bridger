@@ -15,6 +15,9 @@ from src.rpc_manager import RpcValidator
 with open(FantomDir.ROUTER_ABI_FILE, "r") as file:
     ROUTER_ABI = json.load(file)
 
+with open(FantomDir.VOTING_ABI_FILE, "r") as file:
+    VOTING_ABI = json.load(file)
+
 
 class Fantom(ContractsBase):
     def __init__(self):
@@ -30,6 +33,10 @@ class Fantom(ContractsBase):
         self.router_address = web3.to_checksum_address('0xAf5191B0De278C7286d6C7CC6ab6BB8A73bA2Cd6')
         self.router_abi = ROUTER_ABI
         self.router_contract = web3.eth.contract(address=self.router_address, abi=self.router_abi)
+
+        self.voting_address = web3.to_checksum_address("0x933421675cDC8c280e5F21f0e061E77849293dba")
+        self.voting_abi = VOTING_ABI
+        self.voting_contract = web3.eth.contract(address=self.voting_address, abi=self.voting_abi)
 
     @property
     def web3(self):
