@@ -1,7 +1,7 @@
 import PySimpleGUI as sg
 
-from bridge_swap.gui.gui_autobridge import LayerZeroAutoBridgeGui
-from bridge_swap.gui.gui_manual import LayerZeroManualGui
+from gui.gui_autobridge import LayerZeroAutoBridgeGui
+from gui.gui_manual import LayerZeroManualGui
 
 
 def choose_menu_layout():

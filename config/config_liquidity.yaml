@@ -1,0 +1,9 @@
+source_chain: BSC
+coin_to_stake: USDT
+min_amount_to_stake: 0.1
+max_amount_to_stake: 0.2
+stake_all_balance: false
+min_delay_seconds: 0
+max_delay_seconds: 0
+gas_limit: 3000000
+test_mode: true
