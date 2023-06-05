@@ -1,6 +1,8 @@
 import random
+import time
 
 from typing import Union
+from loguru import logger
 
 from src.schemas.config import ConfigSchema
 from src.bridge_manager import BridgeManager, get_all_chain_paths, get_class_object_from_main_file
@@ -25,6 +27,14 @@ class BridgeBase:
         self.max_bridge_amount = config.max_bridge_amount
 
         self.web3 = self.source_chain.web3
+
+    def get_wallet_number(self, wallet_number):
+        if wallet_number is None:
+            wallet_number = ""
+        else:
+            wallet_number = f"[{wallet_number}]"
+
+        return wallet_number
 
     def get_checksum_address(self, address):
         return self.web3.to_checksum_address(address)
@@ -53,6 +63,7 @@ class BridgeBase:
                                                                             [0, 0, wallet_address]
                                                                             ).call()
         return fee[0]
+        return fee[0]
 
     def get_endpoint_txn_fee(self, router_address, adapter_params, chain_id):
         fee = self.source_chain.endpoint_contract.functions.estimateFees(chain_id,
@@ -61,6 +72,13 @@ class BridgeBase:
                                                                          False,
                                                                          adapter_params
                                                                          ).call()
+        return fee[0]
+
+    def get_txn_fee_bridge_from_core(self, target_chain_id):
+        fee = self.source_chain.router_contract.functions.estimateBridgeFee(target_chain_id,
+                                                                              False,
+                                                                              "0x",
+                                                                              ).call()
         return fee[0]
 
     def get_core_bridge_fee(self, adapter_params):
@@ -99,18 +117,67 @@ class BridgeBase:
             else:
                 return self.web3.eth.gas_price
 
-    def get_src_pool_id(self, token_obj):
-        return token_obj.pool_id
+    def get_pool_id(self, token_obj):
+        try:
+            token_obj_pool_id = token_obj.pool_id
+        except Exception as e:
+            token_obj_pool_id = None
 
-    def get_dst_pool_id(self, token_obj):
-        src_token_name = token_obj.name
-        token_objects = self.target_chain.token_contracts
-        for token in token_objects:
-            if token.name == src_token_name:
-                return token.pool_id
+        return token_obj_pool_id
 
-        for token in token_objects:
-            return token.pool_id
+    def allowance_check_loop(self, wallet_address, target_allowance_amount, token_contract):
+        process_start_time = time.time()
+        while True:
+            if time.time() - process_start_time > 150:
+                return False
+
+            current_allowance = self.check_allowance(wallet_address=wallet_address,
+                                                     token_contract=token_contract,
+                                                     spender=self.source_chain.router_address)
+            logger.debug(f"Waiting allowance txn, allowance: {current_allowance}, need: {target_allowance_amount}, "
+                         f"time passed: {time.time() - process_start_time}")
+
+            if current_allowance >= target_allowance_amount:
+                return True
+            time.sleep(3)
+
+    def make_approve_for_token(self, private_key, target_approve_amount, token_contract, token_obj):
+        wallet_address = self.get_wallet_address(private_key)
+        approve_amount = int((10 ** 8) * 10 ** self.get_token_decimals(token_contract))
+        allowance_txn = self.build_allowance_tx(wallet_address=wallet_address,
+                                                token_contract=token_contract,
+                                                amount_out=approve_amount,
+                                                spender=self.source_chain.router_address)
+        try:
+            estimate_gas_limit = self.get_estimate_gas(allowance_txn)
+
+            if estimate_gas_limit < self.config_data.gas_limit:
+                allowance_txn['gas'] = estimate_gas_limit
+
+            if self.config_data.test_mode is True:
+                logger.info(f"[{wallet_address}] - Estimated gas limit for {token_obj.name}"
+                            f" approve: {estimate_gas_limit}. You are currently in test mode")
+                return
+
+            signed_txn = self.web3.eth.account.sign_transaction(allowance_txn, private_key=private_key)
+            tx_hash = self.web3.eth.send_raw_transaction(signed_txn.rawTransaction)
+            logger.success(f"[{wallet_address}] - Approve transaction sent: {tx_hash.hex()}")
+            time.sleep(0.2)
+
+            allowance_check = self.allowance_check_loop(wallet_address=wallet_address,
+                                                        target_allowance_amount=target_approve_amount,
+                                                        token_contract=token_contract)
+            if allowance_check is True:
+                logger.info(f"[{wallet_address}] - Approve transaction confirmed")
+                time.sleep(2)
+                return True
+            else:
+                logger.info(f"[{wallet_address}] - Allowance process took more than 150 seconds, aborting")
+                return False
+
+        except Exception as e:
+            logger.error(f"[{wallet_address}] - Error while approving txn: {e}")
+            return False
 
     def get_random_amount_out(self, min_amount, max_amount, token_contract=None):
         random_amount = random.uniform(min_amount, max_amount)
@@ -166,14 +233,19 @@ class BridgeBase:
 
         return bridge_transaction
 
-    def build_token_bridge_tx(self, wallet_address, amount_out, chain_id, token_obj, dst_wallet_address):
+    def build_token_bridge_tx(self, wallet_address, amount_out, chain_id, src_token_obj, dst_token_obj,
+                              dst_wallet_address):
+
         fee: int = self.get_txn_fee(wallet_address=wallet_address)
         amount_out_min = self.get_amount_out_min(amount_out=amount_out)
         nonce = self.get_wallet_nonce(wallet_address=wallet_address)
         gas_price = self.get_gas_price()
         gas_limit = self.config_data.gas_limit
-        src_pool_id = self.get_src_pool_id(token_obj=token_obj)
-        dst_pool_id = self.get_dst_pool_id(token_obj=token_obj)
+
+        src_pool_id = self.get_pool_id(token_obj=src_token_obj)
+        dst_pool_id = self.get_pool_id(token_obj=dst_token_obj)
+        if src_pool_id is None or dst_pool_id is None:
+            return None
 
         bridge_transaction = self.source_chain.router_contract.functions.swap(
             chain_id,
@@ -246,6 +318,27 @@ class BridgeBase:
             token_obj.address,
             amount_out,
             dst_wallet_address,
+            [wallet_address, zro_payment_address],
+            '0x'
+        ).build_transaction({
+            'from': wallet_address,
+            'value': fee,
+            'gas': self.config_data.gas_limit,
+            'gasPrice': self.get_gas_price(),
+            'nonce': self.get_wallet_nonce(wallet_address=wallet_address)
+        })
+        return bridge_transaction
+
+    def build_token_bridge_frome_core_tx(self, wallet_address, amount_out, token_obj, dst_wallet_address):
+        zro_payment_address = self.web3.to_checksum_address('0x0000000000000000000000000000000000000000')
+        fee: int = self.get_txn_fee_bridge_from_core(target_chain_id=self.target_chain.chain_id)
+
+        bridge_transaction = self.source_chain.router_contract.functions.bridge(
+            token_obj.address,
+            self.target_chain.chain_id,
+            amount_out,
+            dst_wallet_address,
+            True,
             [wallet_address, zro_payment_address],
             '0x'
         ).build_transaction({
