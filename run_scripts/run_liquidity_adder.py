@@ -3,6 +3,8 @@ from src.stake_manager import LiquidityManager
 
 from stake.add_liquidity.main import mass_add_liquidity
 
+from loguru import logger
+
 
 def run_config():
     config = get_add_liquidity_config()
@@ -10,8 +12,8 @@ def run_config():
     error_msg = stake_manager.check_if_route_eligible()
 
     if error_msg is not True:
-        print(error_msg)
-        return
+        logger.error(error_msg)
+        exit(1)
 
     mass_add_liquidity(config=config)
 
