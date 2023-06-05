@@ -3,7 +3,14 @@ import os
 import json
 
 from src.paths import CONFIG_FILE, WALLETS_FILE, APTOS_WALLETS_FILE, WARM_UP_CONFIG_FILE, WALLET_LOGS_DIR, MAIN_DIR
+from src.paths import LIQUIDITY_CONFIG_FILE, STAKE_STG_CONFIG_FILE
 from loguru import logger
+
+
+def create_empty_evm_wallets_file():
+    with open(WALLETS_FILE, "w") as file:
+        file.write("")
+        logger.info("Created evm wallets file")
 
 
 def read_evm_wallets_from_file():
@@ -15,7 +22,14 @@ def read_evm_wallets_from_file():
             return [x for x in wallets_from_txt if x and x.strip() and len(x) == 66]
     except FileNotFoundError:
         logger.error("Wallets file not found")
+        create_empty_evm_wallets_file()
         return []
+
+
+def create_empty_aptos_wallets_file():
+    with open(APTOS_WALLETS_FILE, "w") as file:
+        file.write("")
+        logger.info("Created aptos addresses file")
 
 
 def read_aptos_wallets_from_file():
@@ -26,6 +40,8 @@ def read_aptos_wallets_from_file():
                 return []
             return [x for x in wallets_from_txt if x and x.strip() and len(x) == 66]
     except FileNotFoundError:
+        logger.error("Aptos addresses file not found, ignore this message if you don't use Aptos Bridge")
+        create_empty_aptos_wallets_file()
         return []
 
 
@@ -48,6 +64,22 @@ def load_warmup_config():
             return yaml.load(f, Loader=yaml.FullLoader)
     except FileNotFoundError:
         logger.error("Warmup Config file not found")
+
+
+def load_add_liquidity_config():
+    try:
+        with open(LIQUIDITY_CONFIG_FILE, "r") as f:
+            return yaml.load(f, Loader=yaml.FullLoader)
+    except FileNotFoundError:
+        logger.error("Config file not found")
+
+
+def load_stake_stg_config():
+    try:
+        with open(STAKE_STG_CONFIG_FILE, "r") as f:
+            return yaml.load(f, Loader=yaml.FullLoader)
+    except FileNotFoundError:
+        logger.error("Config file not found")
 
 
 def get_all_wallets_logs_data():
