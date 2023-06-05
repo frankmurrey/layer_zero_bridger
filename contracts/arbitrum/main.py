@@ -25,6 +25,9 @@ with open(ArbDir.APT_ROUTER_ABI_FILE, "r") as file:
 with open(ArbDir.ENDPOINT_ABI_FILE, "r") as file:
     ENDPOINT_ABI = json.load(file)
 
+with open(ArbDir.VOTING_ABI_FILE, "r") as file:
+    VOTING_ABI = json.load(file)
+
 
 class Arbitrum(ContractsBase):
     def __init__(self):
@@ -52,6 +55,10 @@ class Arbitrum(ContractsBase):
         self.endpoint_address = web3.to_checksum_address("0x3c2269811836af69497E5F486A85D7316753cf62")
         self.endpoint_abi = ENDPOINT_ABI
         self.endpoint_contract = web3.eth.contract(address=self.endpoint_address, abi=self.endpoint_abi)
+
+        self.voting_address = web3.to_checksum_address("0xfBd849E6007f9BC3CC2D6Eb159c045B8dc660268")
+        self.voting_abi = VOTING_ABI
+        self.voting_contract = web3.eth.contract(address=self.voting_address, abi=self.voting_abi)
 
     @property
     def web3(self):

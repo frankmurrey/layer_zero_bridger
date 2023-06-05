@@ -1,5 +1,7 @@
 import random
 
+from typing import Union
+
 from web3 import Web3
 
 
@@ -17,7 +19,7 @@ class RpcBase:
 
 
 class Token:
-    def __init__(self, name: str, abi: str, address, pool_id: int):
+    def __init__(self, name: str, abi: str, address, pool_id: Union[int, None]):
         self.name = name
         self.address = Web3.to_checksum_address(address)
         self.abi = abi

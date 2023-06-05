@@ -9,7 +9,7 @@ from bridge_swap.aptos.bridge_to_aptos import token_mass_transfer_to_aptos as ap
 
 def run_bridge(config_data: ConfigSchema):
     bridge_name = config_data.bridge_option
-    coin_to_transfer = config_data.coin_to_transfer
+    coin_to_transfer = config_data.source_coin_to_transfer
 
     if bridge_name.lower() == 'stargate':
         if coin_to_transfer.lower() == 'ethereum':

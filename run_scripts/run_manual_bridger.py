@@ -3,7 +3,6 @@ from src.bridge_manager import BridgeManager
 
 from bridge_swap.bridge_runner import run_bridge
 
-
 from loguru import logger
 
 
@@ -13,7 +12,7 @@ def run_config():
     error_msg = bridge_manager.check_if_route_eligible()
     if error_msg is not True:
         logger.error(error_msg)
-        return
+        exit(1)
 
     run_bridge(config_data=config)
 

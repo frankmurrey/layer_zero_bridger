@@ -1,3 +1,5 @@
+import json
+
 from typing import List
 
 from contracts.core_dao.token_contracts import core_tokens
@@ -11,6 +13,12 @@ from loguru import logger
 
 from src.rpc_manager import RpcValidator
 
+with open(CoreDaoDir.ROUTER_ABI_FILE, "r") as file:
+    ROUTER_ABI = json.load(file)
+
+with open(CoreDaoDir.ENDPOINT_ABI_FILE, "r") as file:
+    ENDPOINT_ABI = json.load(file)
+
 
 class CoreDao(ContractsBase):
     def __init__(self):
@@ -22,6 +30,14 @@ class CoreDao(ContractsBase):
         self.is_eth_available = False
 
         web3 = self.web3
+
+        self.router_address = web3.to_checksum_address('0xA4218e1F39DA4AaDaC971066458Db56e901bcbdE')
+        self.router_abi = ROUTER_ABI
+        self.router_contract = web3.eth.contract(address=self.router_address, abi=self.router_abi)
+
+        self.endpoint_address = web3.to_checksum_address("0x9740FF91F1985D8d2B71494aE1A2f723bb3Ed9E4")
+        self.endpoint_abi = ENDPOINT_ABI
+        self.endpoint_contract = web3.eth.contract(address=self.endpoint_address, abi=self.endpoint_abi)
 
     @property
     def web3(self):

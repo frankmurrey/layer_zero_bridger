@@ -20,6 +20,9 @@ with open(PolygonDir.APT_ROUTER_ABI_FILE, "r") as file:
 with open(PolygonDir.ENDPOINT_ABI_FILE, "r") as file:
     ENDPOINT_ABI = json.load(file)
 
+with open(PolygonDir.VOTING_ABI_FILE, "r") as file:
+    VOTING_ABI = json.load(file)
+
 
 class Polygon(ContractsBase):
     def __init__(self):
@@ -43,6 +46,10 @@ class Polygon(ContractsBase):
         self.endpoint_address = web3.to_checksum_address("0x3c2269811836af69497E5F486A85D7316753cf62")
         self.endpoint_abi = ENDPOINT_ABI
         self.endpoint_contract = web3.eth.contract(address=self.endpoint_address, abi=self.endpoint_abi)
+
+        self.voting_address = web3.to_checksum_address("0x3AB2DA31bBD886A7eDF68a6b60D3CDe657D3A15D")
+        self.voting_abi = VOTING_ABI
+        self.voting_contract = web3.eth.contract(address=self.voting_address, abi=self.voting_abi)
 
     @property
     def web3(self):
