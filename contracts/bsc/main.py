@@ -26,6 +26,9 @@ with open(BscDir.ENDPOINT_ABI_FILE, "r") as file:
 with open(BscDir.CORE_DAO_ROUTER_ABI_FILE, "r") as file:
     CORE_DAO_ROUTER_ABI = json.load(file)
 
+with open(BscDir.VOTING_ABI_FILE, "r") as file:
+    VOTING_ABI = json.load(file)
+
 
 class BSC(ContractsBase):
     def __init__(self):
@@ -53,6 +56,10 @@ class BSC(ContractsBase):
         self.core_dao_router_address = web3.to_checksum_address("0x52e75d318cfb31f9a2edfa2dfee26b161255b233")
         self.core_dao_router_abi = CORE_DAO_ROUTER_ABI
         self.core_dao_router_contract = web3.eth.contract(address=self.core_dao_router_address, abi=self.core_dao_router_abi)
+
+        self.voting_address = web3.to_checksum_address("0xD4888870C8686c748232719051b677791dBDa26D")
+        self.voting_abi = VOTING_ABI
+        self.voting_contract = web3.eth.contract(address=self.voting_address, abi=self.voting_abi)
 
     @property
     def web3(self):
