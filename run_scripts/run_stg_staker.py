@@ -3,6 +3,8 @@ from src.stake_manager import StakeManager
 
 from stake.stake_stg.main import mass_stake_stg
 
+from loguru import logger
+
 
 def run_config():
     config = get_stake_stg_config()
@@ -10,8 +12,8 @@ def run_config():
     error_msg = stake_manager.check_if_route_eligible()
 
     if error_msg is not True:
-        print(error_msg)
-        return
+        logger.error(error_msg)
+        exit(1)
 
     mass_stake_stg(config=config)
 
