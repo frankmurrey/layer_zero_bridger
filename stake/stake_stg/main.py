@@ -63,7 +63,7 @@ class StgStake(StakeBase):
 
         source_wallet_address = self.get_wallet_address(private_key=private_key)
         wallet_token_balance_wei = self.get_token_balance(wallet_address=source_wallet_address,
-                                                            token_contract=self.token_contract)
+                                                          token_contract=self.token_contract)
 
         wallet_token_balance = wallet_token_balance_wei / 10 ** self.get_token_decimals(self.token_contract)
 
@@ -80,7 +80,7 @@ class StgStake(StakeBase):
                 max_amount_to_stake = self.config_data.max_amount_to_stake
 
             stg_amount_to_stake = self.get_random_amount_out(min_amount=self.config_data.min_amount_to_stake,
-                                                             max_amount=self.config_data.max_amount_to_stake,
+                                                             max_amount=max_amount_to_stake,
                                                              token_contract=self.token_contract)
 
         stg_amount_to_stake_decimals = stg_amount_to_stake / 10 ** self.get_token_decimals(self.token_contract)
@@ -139,14 +139,10 @@ class StgStake(StakeBase):
             signed_txn = self.web3.eth.account.sign_transaction(stake_txn, private_key=private_key)
             tx_hash = self.web3.eth.send_raw_transaction(signed_txn.rawTransaction)
             logger.success(
-                f"[{source_wallet_address}] - {self.config_data.source_chain} stake {stg_amount_to_stake_decimals} "
+                f"[{source_wallet_address}] - stake {stg_amount_to_stake_decimals} "
                 f"{self.token_obj.name} ({self.config_data.source_chain}) transaction sent: {tx_hash.hex()}")
 
             return tx_hash.hex()
         except Exception as e:
             logger.error(f"[{source_wallet_address}] - Error while sending STG stake transaction: {e}")
             return
-
-
-if __name__ == '__main__':
-    mass_stake_stg(config=get_stake_stg_config())
