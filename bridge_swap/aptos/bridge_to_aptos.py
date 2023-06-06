@@ -254,7 +254,8 @@ class TokenBridgeManualAptos(BridgeBase):
             token_approval = self.make_approve_for_token(private_key=private_key,
                                                          target_approve_amount=token_amount_out,
                                                          token_contract=self.token_contract,
-                                                         token_obj=self.token_obj)
+                                                         token_obj=self.token_obj,
+                                                         spender=self.source_chain.aptos_router_address)
             if token_approval is not True:
                 return
         else:
@@ -287,8 +288,3 @@ class TokenBridgeManualAptos(BridgeBase):
             logger.error(
                 f"{wallet_number} [{source_wallet_address}] - Error while sending  transaction: {e}")
             return
-
-
-if __name__ == '__main__':
-    config = get_config()
-    eth_mass_transfer_to_aptos(config_data=config)
