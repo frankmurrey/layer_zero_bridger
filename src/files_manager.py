@@ -1,10 +1,30 @@
-import yaml
 import os
 import json
+
+import yaml
 
 from src.paths import CONFIG_FILE, WALLETS_FILE, APTOS_WALLETS_FILE, WARM_UP_CONFIG_FILE, WALLET_LOGS_DIR, MAIN_DIR
 from src.paths import LIQUIDITY_CONFIG_FILE, STAKE_STG_CONFIG_FILE
 from loguru import logger
+
+
+def create_yaml_file(file_path, data):
+    with open(file_path, "w") as f:
+        yaml.dump(data, f)
+        logger.info(f"Created new file - {file_path}\n")
+
+
+def create_json_file(file_path, data):
+    with open(file_path, "w") as f:
+        json.dump(data, f, indent=4)
+        logger.info(f"Created new file - {file_path}\n")
+
+
+def check_if_file_exists(file_path):
+    if os.path.isfile(file_path):
+        return True
+    else:
+        return False
 
 
 def create_empty_evm_wallets_file():
