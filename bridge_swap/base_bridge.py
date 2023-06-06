@@ -54,6 +54,16 @@ class BridgeBase:
         allowance = token_contract.functions.allowance(wallet_address, spender).call()
         return allowance
 
+    def get_dst_coin_name(self, src_token_obj):
+        src_token_name = src_token_obj.name
+        token_objects = self.target_chain.token_contracts
+        for token in token_objects:
+            if token.name == src_token_name:
+                return token.name
+
+        for token in token_objects:
+            return token.name
+
     def get_txn_fee(self, wallet_address) -> int:
         wallet_address = self.web3.to_checksum_address(wallet_address)
         fee = self.source_chain.router_contract.functions.quoteLayerZeroFee(self.target_chain.chain_id,
@@ -62,7 +72,6 @@ class BridgeBase:
                                                                             "0x",
                                                                             [0, 0, wallet_address]
                                                                             ).call()
-        return fee[0]
         return fee[0]
 
     def get_endpoint_txn_fee(self, router_address, adapter_params, chain_id):
@@ -125,7 +134,7 @@ class BridgeBase:
 
         return token_obj_pool_id
 
-    def allowance_check_loop(self, wallet_address, target_allowance_amount, token_contract):
+    def allowance_check_loop(self, wallet_address, target_allowance_amount, token_contract, spender):
         process_start_time = time.time()
         while True:
             if time.time() - process_start_time > 150:
@@ -133,7 +142,7 @@ class BridgeBase:
 
             current_allowance = self.check_allowance(wallet_address=wallet_address,
                                                      token_contract=token_contract,
-                                                     spender=self.source_chain.router_address)
+                                                     spender=spender)
             logger.debug(f"Waiting allowance txn, allowance: {current_allowance}, need: {target_allowance_amount}, "
                          f"time passed: {time.time() - process_start_time}")
 
@@ -141,13 +150,13 @@ class BridgeBase:
                 return True
             time.sleep(3)
 
-    def make_approve_for_token(self, private_key, target_approve_amount, token_contract, token_obj):
+    def make_approve_for_token(self, private_key, target_approve_amount, token_contract, token_obj, spender):
         wallet_address = self.get_wallet_address(private_key)
         approve_amount = int((10 ** 8) * 10 ** self.get_token_decimals(token_contract))
         allowance_txn = self.build_allowance_tx(wallet_address=wallet_address,
                                                 token_contract=token_contract,
                                                 amount_out=approve_amount,
-                                                spender=self.source_chain.router_address)
+                                                spender=spender)
         try:
             estimate_gas_limit = self.get_estimate_gas(allowance_txn)
 
@@ -166,7 +175,8 @@ class BridgeBase:
 
             allowance_check = self.allowance_check_loop(wallet_address=wallet_address,
                                                         target_allowance_amount=target_approve_amount,
-                                                        token_contract=token_contract)
+                                                        token_contract=token_contract,
+                                                        spender=spender)
             if allowance_check is True:
                 logger.info(f"[{wallet_address}] - Approve transaction confirmed")
                 time.sleep(2)

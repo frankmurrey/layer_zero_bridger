@@ -48,7 +48,7 @@ class LayerZeroAutoBridgeGui:
                                                 enable_events=True)
 
         max_gas_limit_text = sg.Text('Max gas limit:', text_color='white', font=('Helvetica', 12))
-        max_gas_limit_input = sg.InputText(default_text=3000000, key='max_gas_limit', size=(20, 1))
+        max_gas_limit_input = sg.InputText(default_text=4000000, key='max_gas_limit', size=(20, 1))
 
         slippage_text = sg.Text('Slippage %:', text_color='white', font=('Helvetica', 12))
         slippage_input = sg.InputText(default_text=0.5, key='slippage', size=(20, 1))

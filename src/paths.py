@@ -5,7 +5,6 @@ MAIN_DIR = os.path.join(pathlib.Path(__file__).parent.parent.resolve())
 CONTRACTS_DIR = os.path.join(MAIN_DIR, "contracts")
 WALLET_LOGS_DIR = os.path.join(MAIN_DIR, "wallet_logs")
 CONFIG_DIR = os.path.join(MAIN_DIR, "config")
-
 CONFIG_FILE = os.path.join(CONFIG_DIR, "config_manual.yaml")
 WARM_UP_CONFIG_FILE = os.path.join(CONFIG_DIR, "config_warmup.yaml")
 LIQUIDITY_CONFIG_FILE = os.path.join(CONFIG_DIR, "config_liquidity.yaml")

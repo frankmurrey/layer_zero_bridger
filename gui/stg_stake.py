@@ -208,8 +208,3 @@ class StargateStgStakeGui:
                 window.close()
 
                 mass_stake_stg(config)
-
-
-
-if __name__ == '__main__':
-    StargateStgStakeGui().run_stake_window()

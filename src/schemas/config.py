@@ -8,7 +8,7 @@ class ConfigSchema(BaseSettings):
     source_chain: str = ""
     target_chain: str = ""
     source_coin_to_transfer: str = ""
-    target_coin_to_transfer: str = ""
+    target_coin_to_transfer: Union[str, None] = ""
     min_bridge_amount: Union[float, str] = 0
     max_bridge_amount: Union[float, str] = 0
     min_delay_seconds: int = 0

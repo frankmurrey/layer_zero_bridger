@@ -111,7 +111,8 @@ class CoreDaoBridger(BridgeBase):
             token_approval = self.make_approve_for_token(private_key=private_key,
                                                          target_approve_amount=token_amount_out,
                                                          token_contract=self.token_contract,
-                                                         token_obj=self.token_obj)
+                                                         token_obj=self.token_obj,
+                                                         spender=self.source_chain.core_dao_router_address)
 
             if token_approval is not True:
                 return
@@ -159,6 +160,8 @@ class CoreDaoBridger(BridgeBase):
         else:
             dst_wallet_address = wallet_address
 
+        wallet_number = self.get_wallet_number(wallet_number=wallet_number)
+
         if self.config_data.send_all_balance is True:
             token_amount_out = wallet_token_balance_wei
             if token_amount_out == 0:
@@ -169,8 +172,6 @@ class CoreDaoBridger(BridgeBase):
             token_amount_out = self.get_random_amount_out(min_amount=self.min_bridge_amount,
                                                           max_amount=self.max_bridge_amount,
                                                           token_contract=self.token_contract)
-
-        wallet_number = self.get_wallet_number(wallet_number=wallet_number)
 
         if wallet_token_balance_wei < token_amount_out:
             logger.error(f"{wallet_number} [{source_wallet_address}] - {self.config_data.source_coin_to_transfer} "
@@ -191,7 +192,8 @@ class CoreDaoBridger(BridgeBase):
             token_approval = self.make_approve_for_token(private_key=private_key,
                                                          target_approve_amount=token_amount_out,
                                                          token_contract=self.token_contract,
-                                                         token_obj=self.token_obj)
+                                                         token_obj=self.token_obj,
+                                                         spender=self.source_chain.router_address)
 
             if token_approval is not True:
                 return
@@ -224,6 +226,3 @@ class CoreDaoBridger(BridgeBase):
             logger.error(f"{wallet_number} [{source_wallet_address}] - Error while sending  transaction: {e}")
             return
 
-
-if __name__ == '__main__':
-    core_mass_transfer(config_data=get_config())

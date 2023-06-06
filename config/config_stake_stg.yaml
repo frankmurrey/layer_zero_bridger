@@ -1,9 +1,0 @@
-source_chain: Avalanche
-min_amount_to_stake: 2
-max_amount_to_stake: 0.1
-stake_all_balance: false
-lock_period_months: 36
-min_delay_seconds: 0
-max_delay_seconds: 0
-gas_limit: 3000000
-test_mode: true

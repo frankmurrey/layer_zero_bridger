@@ -50,20 +50,20 @@ def token_mass_transfer(config_data: ConfigSchema):
 class TokenBridgeManual(BridgeBase):
     def __init__(self, config: ConfigSchema):
         super().__init__(config=config)
-        try:
-            self.src_token_obj = self.bridge_manager.detect_coin(coin_query=config.source_coin_to_transfer,
-                                                                 chain_query=self.config_data.source_chain)
-            self.src_token_contract = self.web3.eth.contract(address=self.src_token_obj.address,
-                                                             abi=self.src_token_obj.abi)
+        self.src_token_obj = self.bridge_manager.detect_coin(coin_query=config.source_coin_to_transfer,
+                                                             chain_query=self.config_data.source_chain)
+        self.src_token_contract = self.web3.eth.contract(address=self.src_token_obj.address,
+                                                         abi=self.src_token_obj.abi)
 
-            self.dst_token_obj = self.bridge_manager.detect_coin(coin_query=config.target_coin_to_transfer,
-                                                                 chain_query=self.config_data.target_chain)
-            self.dst_token_contract = self.web3.eth.contract(address=self.dst_token_obj.address,
-                                                             abi=self.dst_token_obj.abi)
+        if config.target_coin_to_transfer is None:
+            dst_coin_name = self.get_dst_coin_name(src_token_obj=self.src_token_obj)
+        else:
+            dst_coin_name = config.target_coin_to_transfer
 
-        except AttributeError:
-            logger.error(f"Bridge of {self.config_data.source_coin_to_transfer} is not supported between"
-                         f" {self.config_data.source_chain} and {self.config_data.target_chain}")
+        self.dst_token_obj = self.bridge_manager.detect_coin(coin_query=dst_coin_name,
+                                                             chain_query=self.config_data.target_chain)
+        self.dst_token_contract = self.web3.eth.contract(address=self.dst_token_obj.address,
+                                                         abi=self.dst_token_obj.abi)
 
     def transfer(self, private_key, wallet_number=None):
         if not self.src_token_obj or not self.dst_token_obj:
@@ -114,7 +114,8 @@ class TokenBridgeManual(BridgeBase):
             token_approval = self.make_approve_for_token(private_key=private_key,
                                                          target_approve_amount=token_amount_out,
                                                          token_contract=self.src_token_contract,
-                                                         token_obj=self.src_token_obj)
+                                                         token_obj=self.src_token_obj,
+                                                         spender=self.source_chain.router_address)
             if token_approval is not True:
                 return
         else:
