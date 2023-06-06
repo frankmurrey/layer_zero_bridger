@@ -8,7 +8,7 @@ from loguru import logger
 
 from src.schemas.stake import AddLiquidityConfig
 from stake.stake_base import StakeBase
-from src.config import print_config, get_add_liquidity_config
+from src.config import print_config
 from src.rpc_manager import RpcValidator
 from src.files_manager import read_evm_wallets_from_file
 
@@ -135,14 +135,10 @@ class LiquidityStargate(StakeBase):
             signed_txn = self.web3.eth.account.sign_transaction(add_liquidity_txn, private_key=private_key)
             tx_hash = self.web3.eth.send_raw_transaction(signed_txn.rawTransaction)
             logger.success(
-                f"[{source_wallet_address}] - {self.config_data.source_chain} add {token_amount_out_to_stake_decimals}"
+                f"[{source_wallet_address}] - {self.config_data.source_chain} add {token_amount_out_to_stake_decimals} "
                 f"{self.token_obj.name} ({self.config_data.source_chain}) liquidity transaction sent: {tx_hash.hex()}")
 
             return tx_hash.hex()
         except Exception as e:
             logger.error(f"[{source_wallet_address}] - Error while sending add liquidity transaction: {e}")
             return
-
-
-if __name__ == '__main__':
-    mass_add_liquidity(config=get_add_liquidity_config())
