@@ -12,8 +12,10 @@ class LayerZeroManualGui:
     def __init__(self):
         self.bridge_options = ['Stargate', 'Aptos', 'CoreDao']
 
-        self.source_chain_options_stargate = ['Arbitrum', 'Optimism', 'Polygon', 'Ethereum', 'BSC', 'Fantom', 'Avalanche']
-        self.target_chain_options_stargate = ['Arbitrum', 'Optimism', 'Polygon', 'Ethereum', 'BSC', 'Fantom', 'Avalanche']
+        self.source_chain_options_stargate = ['Arbitrum', 'Optimism', 'Polygon', 'Ethereum', 'BSC', 'Fantom',
+                                              'Avalanche']
+        self.target_chain_options_stargate = ['Arbitrum', 'Optimism', 'Polygon', 'Ethereum', 'BSC', 'Fantom',
+                                              'Avalanche']
         self.coin_options_stargate = ['Ethereum', 'USDC', 'USDT']
 
         self.source_chain_options_aptos = ['Ethereum', 'Polygon', 'Avalanche', 'Optimism', 'Arbitrum']
@@ -62,16 +64,17 @@ class LayerZeroManualGui:
             test_mode_text = sg.Text(f'You are currently in real mode\n',
                                      font=('Helvetica', 12), text_color='red')
 
-        addr_text = values['address_to_send'] if values['send_to_one_address'] else 'Wallet to bridge: auto or to the same wallet'
+        addr_text = values['address_to_send'] if values[
+            'send_to_one_address'] else 'Wallet to bridge: auto or to the same wallet'
         address_to_send_text = sg.Text(addr_text,
                                        font=('Helvetica', 12))
 
         source_chain_text = sg.Text(f'Source chain: {values["source_chain"]}',
                                     font=('Helvetica', 12))
         target_chain_text = sg.Text(f'Target chain: {values["target_chain"]}',
-                                    font=('Helvetica', 12),)
+                                    font=('Helvetica', 12), )
         bridge_option_text = sg.Text(f'Bridge option: {values["bridge_option"]}',
-                                        font=('Helvetica', 12))
+                                     font=('Helvetica', 12))
         slippage_text = sg.Text(f'Slippage: {values["slippage"]}%',
                                 font=('Helvetica', 12))
         gas_limit_text = sg.Text(f'Gas limit: {values["gas_limit"]}',
@@ -79,15 +82,15 @@ class LayerZeroManualGui:
         gas_price_text = sg.Text(f'Gas price: {values["gas_price"]}',
                                  font=('Helvetica', 12))
         src_coin_to_transfer_text = sg.Text(f'Coin to transfer: {values["source_coin_to_transfer"]}',
-                                        font=('Helvetica', 12))
+                                            font=('Helvetica', 12))
         target_coin_to_transfer_text = sg.Text(f'Coin to transfer: {values["target_coin_to_transfer"]}',
-                                       font=('Helvetica', 12))
+                                               font=('Helvetica', 12))
         send_all_balance_text = sg.Text(f'Send all balance: {values["send_all_balance"]}',
                                         font=('Helvetica', 12))
         min_delay_seconds_text = sg.Text(f'Min delay seconds: {values["min_delay_seconds"]}',
-                                            font=('Helvetica', 12))
+                                         font=('Helvetica', 12))
         max_delay_seconds_text = sg.Text(f'Max delay seconds: {values["max_delay_seconds"]}',
-                                            font=('Helvetica', 12))
+                                         font=('Helvetica', 12))
         min_bridge_amount_text = sg.Text(f'Amount to transfer min: {values["min_bridge_amount"]}',
                                          font=('Helvetica', 12))
         max_bridge_amount_text = sg.Text(f'Amount to transfer max: {values["max_bridge_amount"]}',
@@ -162,7 +165,7 @@ class LayerZeroManualGui:
 
         gas_limit_text = sg.Text('Gas limit:')
         gas_limit_input = sg.InputText(size=field_size,
-                                       default_text=3000000,
+                                       default_text=4000000,
                                        key='gas_limit')
 
         gas_price_text = sg.Text('Gas price (gwei):',
