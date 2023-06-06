@@ -92,7 +92,7 @@ class StakeBase:
         else:
             return self.web3.eth.gas_price
 
-    def allowance_check_loop(self, wallet_address, target_allowance_amount, token_contract):
+    def allowance_check_loop(self, wallet_address, target_allowance_amount, token_contract, spender):
         process_start_time = time.time()
         while True:
             if time.time() - process_start_time > 150:
@@ -100,7 +100,7 @@ class StakeBase:
 
             current_allowance = self.check_allowance(wallet_address=wallet_address,
                                                      token_contract=token_contract,
-                                                     spender=self.source_chain.router_address)
+                                                     spender=spender)
             logger.debug(f"Waiting allowance txn, allowance: {current_allowance}, need: {target_allowance_amount}, "
                          f"time passed: {time.time() - process_start_time}")
 
@@ -133,7 +133,8 @@ class StakeBase:
 
             allowance_check = self.allowance_check_loop(wallet_address=wallet_address,
                                                         target_allowance_amount=target_approve_amount,
-                                                        token_contract=token_contract)
+                                                        token_contract=token_contract,
+                                                        spender=spender)
             if allowance_check is True:
                 logger.info(f"[{wallet_address}] - Approve transaction confirmed")
                 time.sleep(2)
@@ -192,6 +193,3 @@ class StakeBase:
             'nonce': nonce,
         })
         return stake_transaction
-
-
-
