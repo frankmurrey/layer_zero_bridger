@@ -207,6 +207,3 @@ class StargateLiquidityGui:
 
                 mass_add_liquidity(config)
 
-
-if __name__ == '__main__':
-    StargateLiquidityGui().run_liquidity_window()
