@@ -1,6 +1,8 @@
 import time
 import random
 
+from web3.exceptions import ContractLogicError
+
 from datetime import datetime, timedelta
 
 from bridge_swap.base_bridge import BridgeBase
@@ -132,7 +134,6 @@ class TokenBridgeManual(BridgeBase):
             logger.error(f"{wallet_number} [{source_wallet_address}] - Failed to build transaction,"
                          f" please check your chain and coin bridge options")
             return
-
         try:
             pre_estimated_gas_limit = self.get_estimate_gas(transaction=txn)
             if self.config_data.gas_limit > pre_estimated_gas_limit:
@@ -155,6 +156,18 @@ class TokenBridgeManual(BridgeBase):
                 f"{token_amount_out_decimals} {self.src_token_obj.name} bridge transaction sent: {tx_hash.hex()}")
 
             return tx_hash.hex()
+        except ValueError as e:
+            if "nonce too low" in str(e):
+                logger.error(f"{wallet_number} [{source_wallet_address}] - Nonce too low: {e}.\n")
+
+        except ContractLogicError as e:
+            if "FeeLibrary: not enough balance" in str(e):
+                logger.error(f"{wallet_number} [{wallet_address}] - Error while sending bridge transaction: {e}.\n"
+                             f" Usually this error means that current bridge route"
+                             f" ({self.src_token_obj.name} {self.config_data.source_chain} →"
+                             f" {self.dst_token_obj.name} {self.config_data.target_chain})"
+                             f" has not enough liquidity. Please choose another route.")
+
         except Exception as e:
             logger.error(f"{wallet_number} [{source_wallet_address}] - Error while sending  transaction: {e}")
             return
