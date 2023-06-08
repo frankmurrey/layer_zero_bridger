@@ -102,7 +102,7 @@ class StakeBase:
                                                      token_contract=token_contract,
                                                      spender=spender)
             logger.debug(f"Waiting allowance txn, allowance: {current_allowance}, need: {target_allowance_amount}, "
-                         f"time passed: {time.time() - process_start_time}")
+                         f"time passed: {time.time() - process_start_time}, will wait 150 seconds then skip wallet" )
 
             if current_allowance >= target_allowance_amount:
                 return True
