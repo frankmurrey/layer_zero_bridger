@@ -104,6 +104,7 @@ class BridgeManager:
         eth_eligible_chains = ['Optimism', 'Ethereum', 'Arbitrum']
         usdc_eligible_chains = ['Arbitrum', 'Optimism', 'Ethereum', 'Avalanche', 'Polygon', 'Fantom']
         usdt_eligible_chains = ['Arbitrum', 'Ethereum', 'BSC', 'Avalanche', 'Polygon']
+        stg_eligible_chains = ['BSC', 'Arbitrum', 'Polygon', 'Avalanche', 'Fantom']
 
         if self.input_data.send_to_one_address is True:
             if len(self.input_data.address_to_send) != 42:
@@ -141,6 +142,19 @@ class BridgeManager:
         if self.target_coin_to_transfer == 'USDT':
             error_msg = f'USDT bridge to {self.target_chain} is not supported'
             if self.target_chain not in usdt_eligible_chains:
+                return error_msg
+
+        if self.src_coin_to_transfer.lower() == 'stg' or self.target_coin_to_transfer.lower() == 'stg':
+            if self.target_chain not in stg_eligible_chains:
+                error_msg = f'STG bridge from {self.source_chain} to {self.target_chain} is not supported'
+                return error_msg
+
+            if self.source_chain not in stg_eligible_chains:
+                error_msg = f'STG bridge from {self.source_chain} to {self.target_chain} is not supported'
+                return error_msg
+
+            if self.target_coin_to_transfer.lower() != 'stg' or self.src_coin_to_transfer.lower() != 'stg':
+                error_msg = f'STG coin can only be transferred to STG coin'
                 return error_msg
 
         return True
