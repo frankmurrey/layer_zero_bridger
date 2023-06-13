@@ -7,7 +7,7 @@
 
  - Поддерживаемые сети: *Arbitrum, Optimism, Avalanche, BSC, Ethereum (mainnet), Polygon, Fantom, CoreDao*
  - Поддерживаемые мосты: *Stargate, Core, Aptos (btc.b, harmony will be included in next updates)*
- - Поддерживаемы токены для бриджа: *USDC, USDT, Ethereum (STG, btc.b  will be included in next updates)*
+ - Поддерживаемы токены для бриджа: *USDC, USDT, Ethereum, STG (btc.b  will be included in next updates)*
  - Возможность бриджить USDC → USDT и обратно, если нет ликвидности и если это позволяет мост.
  - Возможность бриджа на один адрес (если вам все равно на связи м/у кошельками). В случае с аптосом, для каждого евм кошелька нужна пара аптос кошелька в файле `aptos_addresses.txt`, если не хотите бриджить на один кошелёк.
  - Возможность бриджа всего баланса в токенах
