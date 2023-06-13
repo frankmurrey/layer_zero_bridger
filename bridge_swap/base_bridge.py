@@ -85,9 +85,9 @@ class BridgeBase:
 
     def get_txn_fee_bridge_from_core(self, target_chain_id):
         fee = self.source_chain.router_contract.functions.estimateBridgeFee(target_chain_id,
-                                                                              False,
-                                                                              "0x",
-                                                                              ).call()
+                                                                            False,
+                                                                            "0x",
+                                                                            ).call()
         return fee[0]
 
     def get_core_bridge_fee(self, adapter_params):
@@ -202,6 +202,13 @@ class BridgeBase:
     def gef_get_adapter_params(self, recipient_address: bytes):
         encoded_params = encode(["uint16", "uint256", "uint", "bytes32"],
                                 [2, 10000, 0, recipient_address]).hex()
+        params = '000' + encoded_params.lstrip('0')
+        params_bytes = bytes.fromhex(params)
+        return params_bytes
+
+    def get_adapter_params_v1(self, gas_on_destination: int):
+        encoded_params = encode(["uint16", "uint256"],
+                                [1, int(gas_on_destination)]).hex()
         params = '000' + encoded_params.lstrip('0')
         params_bytes = bytes.fromhex(params)
         return params_bytes
@@ -359,3 +366,27 @@ class BridgeBase:
             'nonce': self.get_wallet_nonce(wallet_address=wallet_address)
         })
         return bridge_transaction
+
+    def build_stg_bridge_txn(self, src_wallet_address, dst_wallet_address, amount_out, token_obj, dst_cain_id):
+        zro_payment_address = self.web3.to_checksum_address('0x0000000000000000000000000000000000000000')
+        fee: int = self.get_txn_fee(wallet_address=src_wallet_address)
+        adapter_params = self.get_adapter_params_v1(gas_on_destination=85000)
+        token_contract = self.web3.eth.contract(address=token_obj.address, abi=token_obj.abi)
+
+        bridge_transaction = token_contract.functions.sendTokens(
+            dst_cain_id,
+            dst_wallet_address,
+            amount_out,
+            zro_payment_address,
+            adapter_params
+        ).build_transaction({
+            'from': src_wallet_address,
+            'gas': self.config_data.gas_limit,
+            'value': fee,
+            'gasPrice': self.get_gas_price(),
+            'nonce': self.get_wallet_nonce(wallet_address=src_wallet_address)
+        })
+        return bridge_transaction
+
+
+
