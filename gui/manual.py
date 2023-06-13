@@ -16,7 +16,7 @@ class LayerZeroManualGui:
                                               'Avalanche']
         self.target_chain_options_stargate = ['Arbitrum', 'Optimism', 'Polygon', 'Ethereum', 'BSC', 'Fantom',
                                               'Avalanche']
-        self.coin_options_stargate = ['Ethereum', 'USDC', 'USDT']
+        self.coin_options_stargate = ['Ethereum', 'USDC', 'USDT', 'STG']
 
         self.source_chain_options_aptos = ['Ethereum', 'Polygon', 'Avalanche', 'Optimism', 'Arbitrum']
         self.target_chain_options_aptos = ['Aptos']

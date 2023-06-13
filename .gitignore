@@ -4,3 +4,4 @@ aptos_addresses.txt
 *__pycache__*
 *.json
 *.yaml
+tests/
