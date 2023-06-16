@@ -18,6 +18,7 @@ from src.files_manager import read_evm_wallets_from_file, get_all_wallets_logs_d
 from src.rpc_manager import RpcValidator
 
 from loguru import logger
+from eth_account import Account
 
 
 def initialize_all_wallets():
@@ -78,6 +79,7 @@ class WalletHandler:
         self.config: WarmUpConfigSchema = config
         self.all_wallet_logs: List[dict] = get_all_wallets_logs_data()
         self.all_wallet_private_keys: List[str] = read_evm_wallets_from_file()
+        self.current_wallet_number: int = 0
 
     def blur_private_key(self, private_key: str) -> str:
         length = len(private_key)
@@ -85,6 +87,10 @@ class WalletHandler:
         end_index = length - start_index
         blurred_private_key = private_key[:start_index] + '*' * (end_index - start_index) + private_key[end_index:]
         return blurred_private_key
+
+    def get_wallet_address(self, private_key):
+        account = Account.from_key(private_key)
+        return account.address
 
     def get_all_wallet_private_keys(self) -> List[str]:
         all_wallet_private_keys = []
@@ -98,36 +104,43 @@ class WalletHandler:
         try:
             if random_state:
                 random_wallet_pr_key = random.choice(self.all_wallet_private_keys)
+                self.current_wallet_number += 1
+                blured_private_key = self.blur_private_key(private_key=random_wallet_pr_key)
+                wallet_address = self.get_wallet_address(private_key=random_wallet_pr_key)
                 self.all_wallet_private_keys.remove(random_wallet_pr_key)
                 # wallet_bridge_needed = self.check_wallet_bridge_needed(random_wallet_pr_key)
 
                 if len(self.all_wallet_private_keys) == 0:
-                    logger.info(f'[{self.blur_private_key(private_key=random_wallet_pr_key)}] '
-                                f'- got wallet private key for bridge,'
-                                f' random state: {random_state}')
+                    logger.info(f"[{self.current_wallet_number}] - {wallet_address}")
+                    logger.info(f"Got wallet pk /{blured_private_key}/), random state: {random_state}")
+
                     return random_wallet_pr_key, True
 
-                logger.info(f'[{self.blur_private_key(private_key=random_wallet_pr_key)}] '
-                            f'- got wallet private key for bridge,'
-                            f' random state: {random_state}')
+                logger.info(f"[{self.current_wallet_number}] - {wallet_address}")
+                logger.info(f"Got wallet pk /{blured_private_key}/), random state: {random_state}")
+
                 return random_wallet_pr_key, False
             else:
                 if len(self.all_wallet_private_keys) == 0:
                     return None
 
                 wallet_private_key = self.all_wallet_private_keys[0]
+                self.current_wallet_number += 1
+                blured_private_key = self.blur_private_key(private_key=wallet_private_key)
+                wallet_address = self.get_wallet_address(private_key=wallet_private_key)
                 self.all_wallet_private_keys.remove(wallet_private_key)
+
                 # wallet_bridge_needed = self.check_wallet_bridge_needed(wallet_private_key)
 
                 if len(self.all_wallet_private_keys) == 0:
-                    logger.info(f'[{self.blur_private_key(private_key=wallet_private_key)}] '
-                                f'- got wallet private key for bridge,'
-                                f' random state: {random_state}')
+                    logger.info(f"[{self.current_wallet_number}] - {wallet_address}")
+                    logger.info(f"Got wallet pk /{blured_private_key}/), random state: {random_state}")
+
                     return wallet_private_key, True
 
-                logger.info(f'[{self.blur_private_key(private_key=wallet_private_key)}]'
-                            f' - got wallet private key for bridge,'
-                            f' random state: {random_state}')
+                logger.info(f"[{self.current_wallet_number}] - {wallet_address}")
+                logger.info(f"Got wallet pk /{blured_private_key}/), random state: {random_state}")
+
                 return wallet_private_key, False
 
         except IndexError as e:
@@ -169,21 +182,21 @@ class WarmUp(WarmUpManager):
         if self.config.coin_to_transfer.lower() == 'stable_coins':
             swap_route = self.route_checker.get_swap_route_stables()
             if swap_route is None:
-                logger.error(f'[{self.wallet_address}] - Error while getting stable swap route, check wallet balance')
+                logger.error(f'Not enough wallet balance for bridge')
                 return None
 
         elif self.config.coin_to_transfer.lower() == 'ethereum':
             swap_route = self.route_checker.get_swap_route_eth()
             if swap_route is None:
-                logger.error(f'[{self.wallet_address}] - Error while getting eth swap route, check wallet balance')
+                logger.error(f'Not enough wallet balance for bridge')
                 return None
 
         else:
-            logger.error(f'[{self.wallet_address}] - Coin to transfer is not supported')
+            logger.error(f'Coin to transfer is not supported')
             return None
 
         if swap_route is None:
-            logger.error(f'[{self.wallet_address}] - Error while getting swap route')
+            logger.error(f'Error while getting swap route')
             return None
 
         source_chain = swap_route['source_chain']
@@ -209,6 +222,8 @@ class WarmUp(WarmUpManager):
         gas_limit = self.config.max_gas_limit
         slippage = self.config.slippage
         test_mode = self.config.test_mode
+        wait_for_confirmation = self.config.wait_for_confirmation
+        confirmation_timeout_seconds = self.config.confirmation_timeout_seconds
 
         config_dict = {
             'source_chain': source_chain,
@@ -220,12 +235,15 @@ class WarmUp(WarmUpManager):
             'gas_limit': gas_limit,
             'slippage': slippage,
             'test_mode': test_mode,
-            'send_all_balance': send_all_balance
+            'send_all_balance': send_all_balance,
+            'wait_for_confirmation': wait_for_confirmation,
+            'confirmation_timeout_seconds': confirmation_timeout_seconds
+
         }
 
         config_manual_data: ConfigSchema = get_config_from_dict(config_dict=config_dict)
         if config_manual_data is None:
-            logger.error(f'[{self.wallet_address}] - Error while getting config manual data')
+            logger.error(f'Error while getting config manual data')
             return None
 
         return config_manual_data
@@ -239,7 +257,7 @@ class WarmUp(WarmUpManager):
         bridge_manager = BridgeManager(input_data=config_data)
         route_eligibility: Union[bool, str] = bridge_manager.check_if_route_eligible()
         if route_eligibility is not True:
-            logger.error(f'[{self.wallet_address}] - {route_eligibility}')
+            logger.error(f'{route_eligibility}')
             return None
 
         if self.config.coin_to_transfer.lower() == 'stable_coins':

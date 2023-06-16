@@ -80,9 +80,15 @@ def get_stake_stg_config_from_dict(config_dict: dict) -> StakeStgConfig:
 
 def print_config(config):
     delay_seconds = 2
+
+    logger.remove()
+    logger.add(stderr,
+               format="<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{level: <8}</level> | <cyan>{line: <3}</cyan>"
+                      " - <level>{message}</level>")
     logger.info(f'Config:')
     for key, value in config.__dict__.items():
         logger.warning(f'{key}: {value}')
+
     logger.info(f"Starting bridge in ({delay_seconds}) seconds")
     logger.info("Press 'Ctrl+C' to stop the process\n")
     logger.debug('Created by: https://github.com/frankmurrey (tg @shnubjack)\n')

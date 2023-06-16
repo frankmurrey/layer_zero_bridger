@@ -3,6 +3,9 @@ from src.files_manager import read_evm_wallets_from_file
 
 
 class StakeBase:
+    def __init__(self, input_data):
+        self.input_data = input_data
+
     def check_if_float_valid(self, value):
         try:
             value = float(value)
@@ -29,14 +32,30 @@ class StakeBase:
         else:
             return True
 
+    def tx_receipt_field_check(self):
+        if self.input_data.wait_for_confirmation:
+            if not self.input_data.confirmation_timeout_seconds:
+                error_msg = 'Wait for confirmation timeout should be specified'
+                return error_msg
+
+            if self.check_if_float_valid(self.input_data.confirmation_timeout_seconds) is False:
+                error_msg = 'Wait for confirmation timeout is not valid, should be int or float'
+                return error_msg
+
+            if self.input_data.confirmation_timeout_seconds <= 0:
+                error_msg = 'Wait for confirmation timeout should be greater than 0'
+                return error_msg
+
+        return True
+
 
 class StakeManager(StakeBase):
     def __init__(self, input_data: StakeStgConfig):
+        super().__init__(input_data)
         self.input_data = input_data
         self.source_chain = input_data.source_chain
 
         self.wallets = read_evm_wallets_from_file()
-
 
     def check_if_route_eligible(self):
         if len(self.wallets) == 0:
@@ -84,11 +103,16 @@ class StakeManager(StakeBase):
             error_msg = 'Gas limit is not valid, should be integer'
             return error_msg
 
+        tx_receipt_eligibility = self.tx_receipt_field_check()
+        if tx_receipt_eligibility is not True:
+            return tx_receipt_eligibility
+
         return True
 
 
 class LiquidityManager(StakeBase):
     def __init__(self, input_data: AddLiquidityConfig):
+        super().__init__(input_data)
         self.input_data = input_data
         self.source_chain = input_data.source_chain
         self.coin_to_stake = input_data.coin_to_stake
@@ -137,6 +161,10 @@ class LiquidityManager(StakeBase):
         if not self.check_if_int_valid(self.input_data.gas_limit):
             error_msg = 'Gas limit is not valid, should be integer'
             return error_msg
+
+        tx_receipt_eligibility = self.tx_receipt_field_check()
+        if tx_receipt_eligibility is not True:
+            return tx_receipt_eligibility
 
         return True
 

@@ -21,6 +21,8 @@ class ConfigSchema(BaseSettings):
     send_to_one_address: bool = False
     send_all_balance: bool = False
     test_mode: bool = True
+    wait_for_confirmation: bool = False
+    confirmation_timeout_seconds: Union[float, str] = 0
 
 
 class WarmUpConfigSchema(BaseSettings):
@@ -35,5 +37,7 @@ class WarmUpConfigSchema(BaseSettings):
     send_all_balance: bool = False
     shuffle_wallets_order: bool = False
     test_mode: bool = True
+    wait_for_confirmation: bool = False
+    confirmation_timeout_seconds: Union[float, str] = 0
 
 

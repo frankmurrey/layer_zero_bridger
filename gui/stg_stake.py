@@ -37,6 +37,11 @@ class StargateStgStakeGui:
                                          font=('Helvetica', 12))
         max_delay_seconds_text = sg.Text(f'Max delay in seconds: {values["max_delay_seconds"]}',
                                          font=('Helvetica', 12))
+        wait_for_confirmation_text = sg.Text(f'Wait for confirmation: {values["wait_for_confirmation"]}',
+                                             font=('Helvetica', 12))
+        confirmation_timeout_seconds_text = sg.Text(
+            f'Confirmation timeout seconds: {values["confirmation_timeout_seconds"]}',
+            font=('Helvetica', 12))
 
         agree_checkbox = sg.Checkbox('All data correct', key='agree_checkbox')
         stake_button = sg.Button('Stake', size=(10, 1), key='stake_button')
@@ -53,6 +58,8 @@ class StargateStgStakeGui:
             [lock_period_months_text],
             [min_delay_seconds_text],
             [max_delay_seconds_text],
+            [wait_for_confirmation_text],
+            [confirmation_timeout_seconds_text],
             [agree_checkbox],
             [back_button, stake_button],
             [watermark],
@@ -109,6 +116,15 @@ class StargateStgStakeGui:
                                            key='gas_limit',
                                            default_text=3000000)
 
+        wait_for_receipt_checkbox = sg.Checkbox('Wait for txn receipt',
+                                                key='wait_for_confirmation',
+                                                enable_events=True)
+        receipt_timeout_text = sg.Text('Receipt timeout (sec):')
+        receipt_timeout_input = sg.InputText(size=field_size,
+                                             disabled=True,
+                                             default_text='',
+                                             key='confirmation_timeout_seconds')
+
         test_mode_checkbox = sg.Checkbox('Test mode',
                                          key='test_mode')
 
@@ -139,6 +155,10 @@ class StargateStgStakeGui:
             [sg.Text("")],
             [max_gas_limit_text],
             [max_gas_limit_input],
+            [sg.Text("")],
+            [receipt_timeout_text],
+            [receipt_timeout_input, wait_for_receipt_checkbox],
+            [sg.Text("")],
             [test_mode_checkbox],
             [next_button, load_wallets_button],
             [watermark]
@@ -165,9 +185,18 @@ class StargateStgStakeGui:
         evm_wallets.update(f"Wallets loaded: {len(read_evm_wallets_from_file())}")
         window.read()
 
+    def wait_for_receipt_option(self, values, window):
+        include_option = values['wait_for_confirmation']
+        receipt_timeout_input = window['confirmation_timeout_seconds']
+
+        if include_option:
+            receipt_timeout_input.update(disabled=False, value='', text_color='black')
+        else:
+            receipt_timeout_input.update(disabled=True, value='', text_color='grey')
+
     def run_stake_window(self):
         stake_layout = self.stake_layout()
-        window = sg.Window('Stargate STG staker', stake_layout, size=(400, 530))
+        window = sg.Window('Stargate STG staker', stake_layout, size=(400, 625))
 
         while True:
             event, values = window.read()
@@ -177,6 +206,9 @@ class StargateStgStakeGui:
 
             elif event == "stake_all_balance":
                 self.stake_all_balance_option(values, window)
+
+            elif event == 'wait_for_confirmation':
+                self.wait_for_receipt_option(values, window)
 
             elif event == "load_wallets_button":
                 self.load_wallets_option(window)
@@ -193,11 +225,11 @@ class StargateStgStakeGui:
                 self.stake_data = values
 
                 window.close()
-                window = sg.Window('Check data', self.check_info_layout(values), size=(400, 530))
+                window = sg.Window('Check data', self.check_info_layout(values), size=(400, 625))
 
             elif event == "back_button":
                 window.close()
-                window = sg.Window('Stargate STG staker', self.stake_layout(), size=(400, 530))
+                window = sg.Window('Stargate STG staker', self.stake_layout(), size=(400, 625))
 
             elif event == "stake_button":
                 if not values['agree_checkbox']:

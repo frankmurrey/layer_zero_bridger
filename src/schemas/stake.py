@@ -13,6 +13,8 @@ class AddLiquidityConfig(BaseSettings):
     max_delay_seconds: int = 0
     gas_limit: int = 0
     test_mode: bool = True
+    wait_for_confirmation: bool = False
+    confirmation_timeout_seconds: Union[float, str] = 0
 
 
 class StakeStgConfig(BaseSettings):
@@ -25,3 +27,5 @@ class StakeStgConfig(BaseSettings):
     max_delay_seconds: Union[int, str, None] = 0
     gas_limit: int = 0
     test_mode: bool = True
+    wait_for_confirmation: bool = False
+    confirmation_timeout_seconds: Union[float, str] = 0

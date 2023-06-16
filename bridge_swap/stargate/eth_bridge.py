@@ -24,7 +24,12 @@ def eth_mass_transfer(config_data: ConfigSchema):
     wallet_number = 1
     wallets_amount = len(wallets)
     for wallet in wallets:
-        bridge_status = eth_bridge.transfer(private_key=wallet, wallet_number=wallet_number)
+        blured_wallet = eth_bridge.blur_private_key(private_key=wallet)
+        wallet_address = eth_bridge.get_wallet_address(private_key=wallet)
+        logger.info(f"[{wallet_number}] - {wallet_address}")
+        logger.info(f"Got wallet pk /{blured_wallet}/")
+
+        bridge_status = eth_bridge.transfer(private_key=wallet)
 
         if wallet_number == wallets_amount:
             logger.info(f"Bridge process is finished\n")
@@ -56,14 +61,12 @@ class EthBridgeManual(BridgeBase):
         source_wallet_address = self.get_wallet_address(private_key=private_key)
         wallet_eth_balance = self.get_eth_balance(source_wallet_address)
         wallet_address = self.get_wallet_address(private_key=private_key)
-        eth_amount_out = self.get_random_amount_out(min_amount=self.min_bridge_amount,
-                                                    max_amount=self.max_bridge_amount)
+        eth_amount_out_wei = self.get_random_amount_out(min_amount=self.min_bridge_amount,
+                                                        max_amount=self.max_bridge_amount)
+        eth_amount_out_decimals = Web3.from_wei(eth_amount_out_wei, 'ether')
 
-        wallet_number = self.get_wallet_number(wallet_number=wallet_number)
-
-        if wallet_eth_balance < eth_amount_out:
-            logger.error(f"{wallet_number} [{source_wallet_address}] - not enough native"
-                         f" ({Web3.from_wei(eth_amount_out, 'ether')} ETH) "
+        if wallet_eth_balance < eth_amount_out_wei:
+            logger.error(f"Not enough native (Need: {eth_amount_out_decimals} ETH) "
                          f"to bridge. Balance: {Web3.from_wei(wallet_eth_balance, 'ether')} ETH")
             return
 
@@ -74,7 +77,7 @@ class EthBridgeManual(BridgeBase):
 
         txn = self.build_eth_bridge_tx(wallet_address=wallet_address,
                                        dst_wallet_address=dst_wallet_address,
-                                       amount_out=eth_amount_out,
+                                       amount_out=eth_amount_out_wei,
                                        chain_id=self.target_chain.chain_id)
         try:
             estimated_gas_limit = self.get_estimate_gas(transaction=txn)
@@ -83,16 +86,31 @@ class EthBridgeManual(BridgeBase):
                 txn['gas'] = estimated_gas_limit
 
             if self.config_data.test_mode is True:
-                logger.info(f"{wallet_number} [{source_wallet_address}] - Estimated gas limit for {self.source_chain.name} → "
+                logger.info(f"Estimated gas limit for {self.source_chain.name} → "
                             f"{self.target_chain.name} "
                             f"ETH bridge: {estimated_gas_limit}")
                 return
 
             signed_txn = self.web3.eth.account.sign_transaction(txn, private_key=private_key)
             tx_hash = self.web3.eth.send_raw_transaction(signed_txn.rawTransaction)
-            logger.success(f"{wallet_number} [{source_wallet_address}] - Transaction sent: {tx_hash.hex()}")
 
-            return tx_hash.hex()
+            if self.config_data.wait_for_confirmation is True:
+                time_out = self.config_data.confirmation_timeout_seconds
+                tx_receipt = self.wait_for_tx_receipt(tx_hash=tx_hash, time_out=time_out)
+                if tx_receipt['status'] == 1:
+                    logger.success(
+                        f"{self.config_data.source_chain} → {self.config_data.target_chain}"
+                        f" ({eth_amount_out_decimals} ETH) bridge transaction success: {tx_hash.hex()}")
+                    return tx_hash.hex()
+                else:
+                    logger.error(f"Transaction is not success: {tx_hash.hex()}")
+
+            else:
+                logger.success(
+                    f"{self.config_data.source_chain} → {self.config_data.target_chain} "
+                    f"({eth_amount_out_decimals} ETH) bridge transaction sent: {tx_hash.hex()}")
+                return tx_hash.hex()
+
         except Exception as e:
-            logger.error(f"{wallet_number} [{source_wallet_address}] - Error while sending ETH bridge txn: {e}")
+            logger.error(f"Error while sending ETH bridge txn: {e}")
             return

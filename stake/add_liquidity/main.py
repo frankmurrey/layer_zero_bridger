@@ -25,6 +25,11 @@ def mass_add_liquidity(config: AddLiquidityConfig):
     wallets_amount = len(wallets)
     wallet_number = 1
     for wallet in wallets:
+        blured_wallet = liquidity_stg.blur_private_key(private_key=wallet)
+        wallet_address = liquidity_stg.get_wallet_address(private_key=wallet)
+        logger.info(f"[{wallet_number}] - {wallet_address}")
+        logger.info(f"Got wallet pk /{blured_wallet}/")
+
         add_liquidity_status = liquidity_stg.add_liquidity(private_key=wallet)
 
         if wallet_number == wallets_amount:
@@ -85,8 +90,7 @@ class LiquidityStargate(StakeBase):
         token_amount_out_to_stake_decimals = token_amount_to_stake / 10 ** self.get_token_decimals(self.token_contract)
 
         if wallet_token_balance_wei < token_amount_to_stake:
-            logger.error(f"[{source_wallet_address}] - {self.config_data.coin_to_stake} "
-                         f"({self.config_data.source_chain})"
+            logger.error(f"{self.config_data.coin_to_stake} ({self.config_data.source_chain})"
                          f" balance not enough "
                          f"to add liquidity. Balance: {wallet_token_balance}. Need: {token_amount_out_to_stake_decimals}")
             return
@@ -97,8 +101,7 @@ class LiquidityStargate(StakeBase):
 
         if allowed_amount_to_bridge < token_amount_to_stake:
             logger.warning(
-                f"[{source_wallet_address}] - Not enough allowance for {self.token_obj.name},"
-                f" approving {self.token_obj.name} to add liquidity")
+                f"Not enough allowance for {self.token_obj.name}, approving {self.token_obj.name} to add liquidity")
 
             token_approval = self.make_approve_for_token(private_key=private_key,
                                                          target_approve_amount=token_amount_to_stake,
@@ -108,15 +111,14 @@ class LiquidityStargate(StakeBase):
             if token_approval is not True:
                 return
         else:
-            logger.info(f"[{source_wallet_address}] - Wallet has enough allowance to add liquidity")
+            logger.info(f"Wallet has enough allowance to add liquidity")
 
         add_liquidity_txn = self.build_add_liquidity_txn(amount_to_stake=token_amount_to_stake,
                                                          wallet_address=source_wallet_address,
                                                          token_obj=self.token_obj)
 
         if add_liquidity_txn is None:
-            logger.error(f"[{source_wallet_address}] - Failed to build transaction,"
-                         f" please check your chain and coin add liquidity options")
+            logger.error(f"Failed to build transaction, please check your chain and coin add liquidity options")
             return
 
         try:
@@ -127,18 +129,33 @@ class LiquidityStargate(StakeBase):
             estimated_gas_limit = self.get_estimate_gas(transaction=add_liquidity_txn)
 
             if self.config_data.test_mode is True:
-                logger.info(f"[{source_wallet_address}] - Estimated gas limit for add {token_amount_out_to_stake_decimals}"
+                logger.info(f"Estimated gas limit for add {token_amount_out_to_stake_decimals}"
                             f"{self.token_obj.name} ({self.config_data.source_chain}) liquidity:"
                             f": {estimated_gas_limit}")
                 return
 
             signed_txn = self.web3.eth.account.sign_transaction(add_liquidity_txn, private_key=private_key)
             tx_hash = self.web3.eth.send_raw_transaction(signed_txn.rawTransaction)
-            logger.success(
-                f"[{source_wallet_address}] - {self.config_data.source_chain} add {token_amount_out_to_stake_decimals} "
-                f"{self.token_obj.name} ({self.config_data.source_chain}) liquidity transaction sent: {tx_hash.hex()}")
 
-            return tx_hash.hex()
+            if self.config_data.wait_for_confirmation is True:
+                time_out = self.config_data.confirmation_timeout_seconds
+                tx_receipt = self.wait_for_tx_receipt(tx_hash=tx_hash, time_out=time_out)
+                if tx_receipt['status'] == 1:
+                    logger.success(
+                        f"{self.config_data.source_chain} add "
+                        f"{token_amount_out_to_stake_decimals} {self.token_obj.name} "
+                        f"({self.config_data.source_chain}) liquidity transaction success: {tx_hash.hex()}")
+                    return tx_hash.hex()
+                else:
+                    logger.error(f"Transaction is not success: {tx_hash.hex()}")
+
+            else:
+                logger.success(
+                    f"{self.config_data.source_chain} add "
+                    f"{token_amount_out_to_stake_decimals} {self.token_obj.name} "
+                    f"({self.config_data.source_chain}) liquidity transaction sent: {tx_hash.hex()}")
+                return tx_hash.hex()
+
         except Exception as e:
-            logger.error(f"[{source_wallet_address}] - Error while sending add liquidity transaction: {e}")
+            logger.error(f"Error while sending add liquidity transaction: {e}")
             return

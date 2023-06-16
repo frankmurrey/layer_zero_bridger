@@ -110,6 +110,16 @@ class BridgeBase:
     def get_amount_out_min(self, amount_out):
         return int(amount_out - (amount_out * self.config_data.slippage // 100))
 
+    def get_gas_price_for_allowance(self):
+        if self.config_data.source_chain.lower() == 'arbitrum':
+            return int(self.web3.eth.gas_price * 1.35)
+        elif self.config_data.source_chain.lower() == 'polygon':
+            return int(self.web3.eth.gas_price * 1.35)
+        elif self.config_data.source_chain.lower() == 'avalanche':
+            return int(self.web3.eth.gas_price * 1.15)
+        else:
+            return self.web3.eth.gas_price
+
     def get_gas_price(self):
         if self.config_data.custom_gas_price is True:
             if self.config_data.gas_price is not None:
@@ -134,6 +144,13 @@ class BridgeBase:
 
         return token_obj_pool_id
 
+    def blur_private_key(self, private_key: str) -> str:
+        length = len(private_key)
+        start_index = length // 6
+        end_index = length - start_index
+        blurred_private_key = private_key[:start_index] + '*' * (end_index - start_index) + private_key[end_index:]
+        return blurred_private_key
+
     def allowance_check_loop(self, wallet_address, target_allowance_amount, token_contract, spender):
         process_start_time = time.time()
         while True:
@@ -150,6 +167,18 @@ class BridgeBase:
                 return True
             time.sleep(3)
 
+    def wait_for_tx_receipt(self, tx_hash, time_out=120):
+        logger.debug(f"Received txn, waiting for receipt (time out in {time_out}s): {tx_hash.hex()}")
+        process_start_time = time.time()
+        while True:
+            if time.time() - process_start_time > 50:
+                return False
+
+            receipt = self.web3.eth.wait_for_transaction_receipt(tx_hash, timeout=time_out)
+            if receipt is not None:
+                return receipt
+            time.sleep(1.5)
+
     def make_approve_for_token(self, private_key, target_approve_amount, token_contract, token_obj, spender):
         wallet_address = self.get_wallet_address(private_key)
         approve_amount = int((10 ** 8) * 10 ** self.get_token_decimals(token_contract))
@@ -164,13 +193,13 @@ class BridgeBase:
                 allowance_txn['gas'] = estimate_gas_limit
 
             if self.config_data.test_mode is True:
-                logger.info(f"[{wallet_address}] - Estimated gas limit for {token_obj.name}"
+                logger.info(f"Estimated gas limit for {token_obj.name}"
                             f" approve: {estimate_gas_limit}. You are currently in test mode")
                 return
 
             signed_txn = self.web3.eth.account.sign_transaction(allowance_txn, private_key=private_key)
             tx_hash = self.web3.eth.send_raw_transaction(signed_txn.rawTransaction)
-            logger.success(f"[{wallet_address}] - Approve transaction sent: {tx_hash.hex()}")
+            logger.success(f"Approve transaction sent: {tx_hash.hex()}")
             time.sleep(0.2)
 
             allowance_check = self.allowance_check_loop(wallet_address=wallet_address,
@@ -178,15 +207,15 @@ class BridgeBase:
                                                         token_contract=token_contract,
                                                         spender=spender)
             if allowance_check is True:
-                logger.info(f"[{wallet_address}] - Approve transaction confirmed")
+                logger.info(f"Approve transaction confirmed")
                 time.sleep(2)
                 return True
             else:
-                logger.info(f"[{wallet_address}] - Allowance process took more than 150 seconds, aborting")
+                logger.info(f"Allowance process took more than 150 seconds, aborting")
                 return False
 
         except Exception as e:
-            logger.error(f"[{wallet_address}] - Error while approving txn: {e}")
+            logger.error(f"Error while approving txn: {e}")
             return False
 
     def get_random_amount_out(self, min_amount, max_amount, token_contract=None):
@@ -215,7 +244,7 @@ class BridgeBase:
 
     def build_allowance_tx(self, wallet_address, token_contract, amount_out, spender):
         nonce = self.get_wallet_nonce(wallet_address=wallet_address)
-        gas_price = self.get_gas_price()
+        gas_price = self.get_gas_price_for_allowance()
         gas_limit = self.config_data.gas_limit
         allowance_transaction = token_contract.functions.approve(
             spender,

@@ -58,7 +58,7 @@ class WarmUpManager:
 
     def fetch_wallet_chain_balances(self, wallet_address: str):
 
-        logger.info(f'[{wallet_address}] - Fetching wallet balances')
+        logger.info(f'Fetching wallet balances:')
         wallet_chain_balances = {"wallet_address": wallet_address}
         for chain in self.chain_options:
             chain_obj = get_class_object_from_main_file(class_name=chain,
@@ -95,9 +95,11 @@ class WarmUpManager:
 
             wallet_chain_balances[chain_obj.name] = chain_balance
 
-        logger.info(f'[{wallet_address}] - Wallet balances fetched')
-        for chain_balance in wallet_chain_balances:
-            logger.info(f'{chain_balance}: {wallet_chain_balances[chain_balance]}')
+        chain_balances_copy = wallet_chain_balances.copy()
+        chain_balances_copy.pop('wallet_address')
+        for chain, chain_balance in chain_balances_copy.items():
+            currency_info = ', '.join(f'{currency} = {amount}' for currency, amount in chain_balance.items())
+            logger.debug(f'{chain}: {currency_info}')
         return wallet_chain_balances
 
 
