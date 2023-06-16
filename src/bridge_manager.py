@@ -229,6 +229,22 @@ class BridgeManager:
 
         return True
 
+    def tx_receipt_field_check(self):
+        if self.input_data.wait_for_confirmation:
+            if not self.input_data.confirmation_timeout_seconds:
+                error_msg = 'Wait for confirmation timeout should be specified'
+                return error_msg
+
+            if self.check_if_float_valid(self.input_data.confirmation_timeout_seconds) is False:
+                error_msg = 'Wait for confirmation timeout is not valid, should be int or float'
+                return error_msg
+
+            if self.input_data.confirmation_timeout_seconds <= 0:
+                error_msg = 'Wait for confirmation timeout should be greater than 0'
+                return error_msg
+
+        return True
+
     def check_if_slippage_valid(self):
         try:
             slippage = float(self.input_data.slippage)
@@ -284,6 +300,10 @@ class BridgeManager:
         common_eligibility = self.common_fields_check()
         if common_eligibility is not True:
             return common_eligibility
+
+        tx_receipt_eligibility = self.tx_receipt_field_check()
+        if tx_receipt_eligibility is not True:
+            return tx_receipt_eligibility
 
         return True
 
@@ -399,6 +419,32 @@ class WarmUpRouteValidator:
 
         return True
 
+    def check_if_float_valid(self, value):
+        try:
+            value = float(value)
+            if value > 0:
+                return True
+            else:
+                return False
+        except ValueError:
+            return False
+
+    def tx_receipt_field_check(self):
+        if self.config.wait_for_confirmation:
+            if not self.config.confirmation_timeout_seconds:
+                error_msg = 'Wait for confirmation timeout should be specified'
+                return error_msg
+
+            if self.check_if_float_valid(self.config.confirmation_timeout_seconds) is False:
+                error_msg = 'Wait for confirmation timeout is not valid, should be int or float'
+                return error_msg
+
+            if self.config.confirmation_timeout_seconds <= 0:
+                error_msg = 'Wait for confirmation timeout should be greater than 0'
+                return error_msg
+
+        return True
+
     def check_route(self):
         if len(read_evm_wallets_from_file()) == 0:
             error_msg = f'No EVM wallets found in evm_wallets.txt'
@@ -423,5 +469,9 @@ class WarmUpRouteValidator:
 
         if self.check_of_slippage_valid() is not True:
             return self.check_of_slippage_valid()
+
+        tx_receipt_eligibility = self.tx_receipt_field_check()
+        if tx_receipt_eligibility is not True:
+            return tx_receipt_eligibility
 
         return True
