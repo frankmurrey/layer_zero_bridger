@@ -49,6 +49,8 @@ class LayerZeroManualGui:
         window['send_to_one_address'].update(value=config['send_to_one_address'])
         window['address_to_send'].update(value=config['address_to_send'])
         window['send_all_balance'].update(value=config['send_all_balance'])
+        window['wait_for_confirmation'].update(value=config['wait_for_confirmation'])
+        window['confirmation_timeout_seconds'].update(value=config['confirmation_timeout_seconds'])
         if config['custom_gas_price']:
             window['custom_gas_price'].update(value=True)
             window['gas_price'].update(value=config['gas_price'])
@@ -95,6 +97,11 @@ class LayerZeroManualGui:
                                          font=('Helvetica', 12))
         max_bridge_amount_text = sg.Text(f'Amount to transfer max: {values["max_bridge_amount"]}',
                                          font=('Helvetica', 12))
+        wait_for_confirmation_text = sg.Text(f'Wait for confirmation: {values["wait_for_confirmation"]}',
+                                             font=('Helvetica', 12))
+        confirmation_timeout_seconds_text = sg.Text(
+            f'Confirmation timeout seconds: {values["confirmation_timeout_seconds"]}',
+            font=('Helvetica', 12))
 
         agree_checkbox = sg.Checkbox('All data correct', key='agree_checkbox')
         bridge_button = sg.Button('Bridge', size=(10, 1), key='bridge_button')
@@ -118,6 +125,8 @@ class LayerZeroManualGui:
             [send_all_balance_text],
             [min_delay_seconds_text],
             [max_delay_seconds_text],
+            [wait_for_confirmation_text],
+            [confirmation_timeout_seconds_text],
             [agree_checkbox],
             [back_button, bridge_button],
             [watermark]
@@ -225,7 +234,16 @@ class LayerZeroManualGui:
         max_delay_text = sg.Text('Max delay (sec):', pad=((51, 0), (0, 0)))
         max_delay_input = sg.InputText(size=field_size,
                                        default_text=0,
-                                       key='max_delay_seconds',)
+                                       key='max_delay_seconds')
+
+        wait_for_receipt_checkbox = sg.Checkbox('Wait for txn receipt',
+                                                key='wait_for_confirmation',
+                                                enable_events=True)
+        receipt_timeout_text = sg.Text('Receipt timeout (sec):')
+        receipt_timeout_input = sg.InputText(size=field_size,
+                                             disabled=True,
+                                             default_text='',
+                                             key='confirmation_timeout_seconds')
 
         test_mode_checkbox = sg.Checkbox('Test mode', key='test_mode')
         next_button = sg.Button('Next', size=(10, 1), key='next_button')
@@ -257,6 +275,8 @@ class LayerZeroManualGui:
             [gas_limit_input, gas_price_input, gas_price_checkbox],
             [min_delay_text, max_delay_text],
             [min_delay_input, max_delay_input],
+            [receipt_timeout_text],
+            [receipt_timeout_input, wait_for_receipt_checkbox],
             [sg.Text('')],
             [test_mode_checkbox],
             [next_button, load_wallets_button, save_cfg_button, load_cfg_button],
@@ -285,6 +305,15 @@ class LayerZeroManualGui:
         else:
             min_bridge_input.update(disabled=False, value='', text_color='black')
             max_bridge_input.update(disabled=False, value='', text_color='black')
+
+    def wait_for_receipt_option(self, values, window):
+        include_option = values['wait_for_confirmation']
+        receipt_timeout_input = window['confirmation_timeout_seconds']
+
+        if include_option:
+            receipt_timeout_input.update(disabled=False, value='', text_color='black')
+        else:
+            receipt_timeout_input.update(disabled=True, value='', text_color='grey')
 
     def send_to_one_address_option(self, values, window):
         include_option = values['send_to_one_address']
@@ -350,7 +379,7 @@ class LayerZeroManualGui:
 
     def run_initial_window(self):
         bridge_layout = self.bridge_layout()
-        window = sg.Window('Layer Zero Manual', bridge_layout, size=(600, 700))
+        window = sg.Window('Layer Zero Manual', bridge_layout, size=(600, 750))
 
         while True:
             event, values = window.read()
@@ -389,6 +418,9 @@ class LayerZeroManualGui:
             elif event == 'load_cfg_button':
                 self.load_data_from_config(window)
 
+            elif event == 'wait_for_confirmation':
+                self.wait_for_receipt_option(values, window)
+
             elif event == 'next_button':
                 config_dict = get_config_from_dict(config_dict=values)
                 bridge_manager = BridgeManager(config_dict)
@@ -404,11 +436,11 @@ class LayerZeroManualGui:
 
                 self.bridge_data = values
                 window.close()
-                window = sg.Window('Check data', self.check_info_layout(values), size=(600, 700))
+                window = sg.Window('Check data', self.check_info_layout(values), size=(600, 750))
 
             elif event == 'back_button':
                 window.close()
-                window = sg.Window('Layer0 bridger', self.bridge_layout(), size=(600, 700))
+                window = sg.Window('Layer0 bridger', self.bridge_layout(), size=(600, 750))
 
             elif event == 'bridge_button':
                 if not values['agree_checkbox']:
