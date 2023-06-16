@@ -53,6 +53,8 @@ class RpcValidator:
                     rpc_list.append(rpc_url)
             valid_rpcs[rpc_name] = rpc_list
 
+        logger.info(f"RPC check finished, validated: {len(valid_rpcs)}\n")
+
         return valid_rpcs
 
     def check_if_required_rpcs_available(self, chain_options: list):
