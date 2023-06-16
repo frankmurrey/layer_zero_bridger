@@ -27,33 +27,43 @@ class LayerZeroAutoBridgeGui:
 
         checkbox_layouts = [chain_name_layouts[i:i + 4] for i in range(0, len(chain_name_layouts), 4)]
 
-        coin_to_transfer_text = sg.Text('Coin to transfer:', text_color='white', font=('Helvetica', 12))
+        coin_to_transfer_text = sg.Text('Coin to transfer:', text_color='white')
         coin_to_transfer_combo = sg.Combo(self.available_coin_names, default_value='Stablecoins',
                                           key='coin_to_transfer')
 
-        min_delay_text = sg.Text('Min delay (seconds):', text_color='white', font=('Helvetica', 12))
+        min_delay_text = sg.Text('Min delay (seconds):', text_color='white')
         min_delay_input = sg.InputText('0', key='min_delay', size=(20, 1))
 
-        max_delay_text = sg.Text('Max delay (seconds):', text_color='white', font=('Helvetica', 12), pad=(20, 0))
+        max_delay_text = sg.Text('Max delay (seconds):', text_color='white')
         max_delay_input = sg.InputText('0', key='max_delay', size=(20, 1), pad=(23, 0))
 
-        min_amount_to_transfer_text = sg.Text('Min amount to transfer:', text_color='white', font=('Helvetica', 12))
+        min_amount_to_transfer_text = sg.Text('Min amount to transfer:', text_color='white')
         min_amount_to_transfer_input = sg.InputText('0', key='min_amount_to_transfer', size=(20, 1))
 
-        max_amount_to_transfer_text = sg.Text('Max amount to transfer:', text_color='white', font=('Helvetica', 12),
+        max_amount_to_transfer_text = sg.Text('Max amount to transfer:', text_color='white',
                                               pad=(6, 0))
         max_amount_to_transfer_input = sg.InputText('0', key='max_amount_to_transfer', size=(20, 1), pad=(23, 0))
 
         send_all_balance_checkbox = sg.Checkbox('Send all balance', default=False, key='send_all_balance',
                                                 enable_events=True)
 
-        max_gas_limit_text = sg.Text('Max gas limit:', text_color='white', font=('Helvetica', 12))
+        max_gas_limit_text = sg.Text('Max gas limit:', text_color='white')
         max_gas_limit_input = sg.InputText(default_text=4000000, key='max_gas_limit', size=(20, 1))
 
-        slippage_text = sg.Text('Slippage %:', text_color='white', font=('Helvetica', 12))
+        slippage_text = sg.Text('Slippage %:', text_color='white')
         slippage_input = sg.InputText(default_text=0.5, key='slippage', size=(20, 1))
 
         shuffle_wallets_checkbox = sg.Checkbox('Shuffle wallets', default=False, key='shuffle_wallets')
+
+        wait_for_receipt_checkbox = sg.Checkbox('Wait for txn receipt',
+                                                key='wait_for_confirmation',
+                                                enable_events=True)
+
+        receipt_timeout_text = sg.Text('Receipt timeout (sec):')
+        receipt_timeout_input = sg.InputText(size=(20, 1),
+                                             disabled=True,
+                                             default_text='',
+                                             key='confirmation_timeout_seconds')
 
         test_mode_checkbox = sg.Checkbox('Test mode', default=True, key='test_mode')
 
@@ -78,7 +88,10 @@ class LayerZeroAutoBridgeGui:
             [max_gas_limit_input],
             [slippage_text],
             [slippage_input],
+            [receipt_timeout_text],
+            [receipt_timeout_input, wait_for_receipt_checkbox],
             [shuffle_wallets_checkbox],
+            [sg.Text('')],
             [test_mode_checkbox],
             [next_button, exit_button],
             [watermark_text]
@@ -104,25 +117,31 @@ class LayerZeroAutoBridgeGui:
                                         font=('Helvetica', 12), text_color='white')
 
         min_delay_text = sg.Text(f'Min delay: {values["min_delay"]} seconds\n',
-                                    font=('Helvetica', 12), text_color='white')
+                                 font=('Helvetica', 12), text_color='white')
 
         max_delay_text = sg.Text(f'Max delay: {values["max_delay"]} seconds\n',
-                                    font=('Helvetica', 12), text_color='white')
+                                 font=('Helvetica', 12), text_color='white')
 
         min_amount_to_transfer_text = sg.Text(f'Min amount to transfer: {values["min_amount_to_transfer"]}\n',
-                                                font=('Helvetica', 12), text_color='white')
+                                              font=('Helvetica', 12), text_color='white')
 
         max_amount_to_transfer_text = sg.Text(f'Max amount to transfer: {values["max_amount_to_transfer"]}\n',
-                                                font=('Helvetica', 12), text_color='white')
+                                              font=('Helvetica', 12), text_color='white')
 
         max_gas_limit_text = sg.Text(f'Max gas limit: {values["max_gas_limit"]}\n',
-                                        font=('Helvetica', 12), text_color='white')
+                                     font=('Helvetica', 12), text_color='white')
 
         slippage_text = sg.Text(f'Slippage: {values["slippage"]}\n',
-                                    font=('Helvetica', 12), text_color='white')
+                                font=('Helvetica', 12), text_color='white')
 
         shuffle_wallets_text = sg.Text(f'Shuffle wallets: {values["shuffle_wallets"]}\n',
-                                        font=('Helvetica', 12), text_color='white')
+                                       font=('Helvetica', 12), text_color='white')
+
+        wait_for_confirmation_text = sg.Text(f'Wait for confirmation: {values["wait_for_confirmation"]}',
+                                             font=('Helvetica', 12))
+        confirmation_timeout_seconds_text = sg.Text(
+            f'Confirmation timeout seconds: {values["confirmation_timeout_seconds"]}',
+            font=('Helvetica', 12))
 
         agreement_checkbox = sg.Checkbox('I agree to use this software at my own risk', default=False, key='agreement')
         back_button = sg.Button('Back', size=(10, 1), key='back_button')
@@ -140,6 +159,8 @@ class LayerZeroAutoBridgeGui:
             [max_gas_limit_text],
             [slippage_text],
             [shuffle_wallets_text],
+            [wait_for_confirmation_text],
+            [confirmation_timeout_seconds_text],
             [agreement_checkbox],
             [back_button, start_button]
         ]
@@ -168,6 +189,8 @@ class LayerZeroAutoBridgeGui:
             'max_gas_limit': values['max_gas_limit'],
             'slippage': values['slippage'],
             'shuffle_wallets_order': values['shuffle_wallets'],
+            'wait_for_confirmation': values['wait_for_confirmation'],
+            'confirmation_timeout_seconds': values['confirmation_timeout_seconds'],
             'test_mode': values['test_mode'],
             'send_all_balance': values['send_all_balance']
         }
@@ -185,9 +208,18 @@ class LayerZeroAutoBridgeGui:
             min_bridge_input.update(disabled=False, value='', text_color='black')
             max_bridge_input.update(disabled=False, value='', text_color='black')
 
+    def wait_for_receipt_option(self, values, window):
+        include_option = values['wait_for_confirmation']
+        receipt_timeout_input = window['confirmation_timeout_seconds']
+
+        if include_option:
+            receipt_timeout_input.update(disabled=False, value='', text_color='black')
+        else:
+            receipt_timeout_input.update(disabled=True, value='', text_color='grey')
+
     def run_initial_window(self):
         bridge_menu_layout = self.bridge_menu_layout()
-        window = sg.Window('Layer Zero Auto', bridge_menu_layout, size=(600, 600))
+        window = sg.Window('Layer Zero Auto', bridge_menu_layout, size=(550, 650))
 
         while True:
             event, values = window.read()
@@ -213,12 +245,15 @@ class LayerZeroAutoBridgeGui:
                     continue
                 check_info_layout = self.check_info_layout(values=values, chain_options=config.chain_options)
                 window.close()
-                window = sg.Window('Layer Zero Auto', check_info_layout, size=(600, 600))
+                window = sg.Window('Layer Zero Auto', check_info_layout, size=(550, 650))
+
+            elif event == 'wait_for_confirmation':
+                self.wait_for_receipt_option(values, window)
 
             elif event == 'back_button':
                 bridge_menu_layout = self.bridge_menu_layout()
                 window.close()
-                window = sg.Window('Layer Zero Auto', bridge_menu_layout, size=(600, 600))
+                window = sg.Window('Layer Zero Auto', bridge_menu_layout, size=(550, 650))
 
             elif event == 'start_button':
                 if values['agreement'] is False:
