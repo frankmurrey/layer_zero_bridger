@@ -64,6 +64,25 @@ class StakeBase:
         timestamp = int(future_date.timestamp())
         return timestamp
 
+    def blur_private_key(self, private_key: str) -> str:
+        length = len(private_key)
+        start_index = length // 3
+        end_index = length - start_index
+        blurred_private_key = private_key[:start_index] + '*' * (end_index - start_index) + private_key[end_index:]
+        return blurred_private_key
+
+    def wait_for_tx_receipt(self, tx_hash, time_out=120):
+        logger.debug(f"Received txn, waiting for receipt (time out in {time_out}s): {tx_hash.hex()}")
+        process_start_time = time.time()
+        while True:
+            if time.time() - process_start_time > 50:
+                return False
+
+            receipt = self.web3.eth.wait_for_transaction_receipt(tx_hash, timeout=time_out)
+            if receipt is not None:
+                return receipt
+            time.sleep(1.5)
+
     def get_random_amount_out(self, min_amount, max_amount, token_contract=None):
         random_amount = random.uniform(min_amount, max_amount)
 
