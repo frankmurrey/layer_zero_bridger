@@ -60,8 +60,7 @@ class WarmUpRouter:
         if target_chain_name is None or source_chain_name is None or random_stable_coin is None:
             return None
         route = {'source_chain': source_chain_name, 'target_chain': target_chain_name, 'coin': random_stable_coin}
-        logger.warning(f'[{self.chain_balances["wallet_address"]}] - Bridge route:'
-                       f' ({route["source_chain"]} > {route["target_chain"]} -  coin: {route["coin"]})')
+        logger.warning(f'Bridge route: ({route["source_chain"]} > {route["target_chain"]} -  coin: {route["coin"]})')
         return route
 
     def get_source_chain_eth(self):
@@ -109,7 +108,6 @@ class WarmUpRouter:
         target_chain_name = self.get_target_chain_eth(source_chain_name=source_chain_name)
         if target_chain_name is None or source_chain_name is None:
             return None
-        logger.warning(f'[{self.chain_balances["wallet_address"]}] - Bridge route:'
-                       f' ({source_chain_name} > {target_chain_name} -  coin: Ethereum)')
+        logger.warning(f'Bridge route: ({source_chain_name} > {target_chain_name} -  coin: Ethereum)')
 
         return {'source_chain': source_chain_name, 'target_chain': target_chain_name, 'coin': self.eth_coin_name}
