@@ -40,6 +40,11 @@ class StargateLiquidityGui:
                                             font=('Helvetica', 12))
         max_gas_limit_text = sg.Text(f'Max gas limit: {values["gas_limit"]}',
                                             font=('Helvetica', 12))
+        wait_for_confirmation_text = sg.Text(f'Wait for confirmation: {values["wait_for_confirmation"]}',
+                                             font=('Helvetica', 12))
+        confirmation_timeout_seconds_text = sg.Text(
+            f'Confirmation timeout seconds: {values["confirmation_timeout_seconds"]}',
+            font=('Helvetica', 12))
         agree_checkbox = sg.Checkbox('All data correct', key='agree_checkbox')
         start_button = sg.Button('Start', size=(10, 1), key='start_button')
         back_button = sg.Button('Back', size=(10, 1), key='back_button')
@@ -56,6 +61,8 @@ class StargateLiquidityGui:
             [min_delay_seconds_text],
             [max_delay_seconds_text],
             [max_gas_limit_text],
+            [wait_for_confirmation_text],
+            [confirmation_timeout_seconds_text],
             [agree_checkbox],
             [back_button, start_button],
             [watermark]
@@ -114,6 +121,15 @@ class StargateLiquidityGui:
                                            key='gas_limit',
                                            default_text=3000000)
 
+        wait_for_receipt_checkbox = sg.Checkbox('Wait for txn receipt',
+                                                key='wait_for_confirmation',
+                                                enable_events=True)
+        receipt_timeout_text = sg.Text('Receipt timeout (sec):')
+        receipt_timeout_input = sg.InputText(size=field_size,
+                                             disabled=True,
+                                             default_text='',
+                                             key='confirmation_timeout_seconds')
+
         test_mode_checkbox = sg.Checkbox('Test mode',
                                          key='test_mode')
 
@@ -143,6 +159,9 @@ class StargateLiquidityGui:
             [max_gas_limit_text],
             [max_gas_limit_input],
             [sg.Text("")],
+            [receipt_timeout_text],
+            [receipt_timeout_input, wait_for_receipt_checkbox],
+            [sg.Text("")],
             [test_mode_checkbox],
             [next_button, load_wallets_button],
             [watermark]
@@ -162,9 +181,18 @@ class StargateLiquidityGui:
             min_stake_input.update(disabled=False, value='', text_color='black')
             max_stake_input.update(disabled=False, value='', text_color='black')
 
+    def wait_for_receipt_option(self, values, window):
+        include_option = values['wait_for_confirmation']
+        receipt_timeout_input = window['confirmation_timeout_seconds']
+
+        if include_option:
+            receipt_timeout_input.update(disabled=False, value='', text_color='black')
+        else:
+            receipt_timeout_input.update(disabled=True, value='', text_color='grey')
+
     def run_liquidity_window(self):
         layout = self.add_liquidity_layout()
-        window = sg.Window('Stargate Liquidity adder', layout, size=(400, 500))
+        window = sg.Window('Stargate Liquidity adder', layout, size=(400, 580))
 
         while True:
             event, values = window.read()
@@ -174,6 +202,9 @@ class StargateLiquidityGui:
 
             elif event == 'stake_all_balance':
                 self.stake_all_balance_option(values, window)
+
+            elif event == 'wait_for_confirmation':
+                self.wait_for_receipt_option(values, window)
 
             elif event == 'load_wallets_button':
                 evm_wallets = read_evm_wallets_from_file()
@@ -191,11 +222,11 @@ class StargateLiquidityGui:
                 self.liq_data = values
 
                 window.close()
-                window = sg.Window('Check data', self.check_info_layout(values), size=(400, 500))
+                window = sg.Window('Check data', self.check_info_layout(values), size=(400, 580))
 
             elif event == "back_button":
                 window.close()
-                window = sg.Window('Stargate Liquidity adder', self.add_liquidity_layout(), size=(400, 500))
+                window = sg.Window('Stargate Liquidity adder', self.add_liquidity_layout(), size=(400, 580))
 
             elif event == 'start_button':
                 if not values['agree_checkbox']:
