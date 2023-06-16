@@ -1,8 +1,6 @@
 import time
 import random
 
-from web3.exceptions import ContractLogicError
-
 from datetime import datetime, timedelta
 
 from bridge_swap.base_bridge import BridgeBase
@@ -25,7 +23,12 @@ def mass_stg_transfer(config_data: ConfigSchema):
     wallet_number = 1
     wallets_amount = len(wallets)
     for wallet in wallets:
-        bridge_status = token_bridge.transfer(private_key=wallet, wallet_number=wallet_number)
+        blured_wallet = token_bridge.blur_private_key(private_key=wallet)
+        wallet_address = token_bridge.get_wallet_address(private_key=wallet)
+        logger.info(f"[{wallet_number}] - {wallet_address}")
+        logger.info(f"Got wallet pk /{blured_wallet}/")
+
+        bridge_status = token_bridge.transfer(private_key=wallet)
 
         if wallet_number == wallets_amount:
             logger.info(f"Bridge process is finished\n")
@@ -81,12 +84,11 @@ class StgBridge(BridgeBase):
             dst_wallet_address = self.get_checksum_address(self.config_data.address_to_send)
         else:
             dst_wallet_address = source_wallet_address
-        wallet_number = self.get_wallet_number(wallet_number=wallet_number)
 
         if self.config_data.send_all_balance is True:
             token_amount_out = wallet_token_balance_wei
             if token_amount_out == 0:
-                logger.error(f"{wallet_number} [{source_wallet_address}] - {self.config_data.source_coin_to_transfer} "
+                logger.error(f"[{source_wallet_address}] - {self.config_data.source_coin_to_transfer} "
                              f"({self.config_data.source_chain}) balance is 0")
                 return
         else:
@@ -97,7 +99,7 @@ class StgBridge(BridgeBase):
         token_amount_out_decimals = token_amount_out / 10 ** self.get_token_decimals(self.src_token_contract)
 
         if wallet_token_balance_wei < token_amount_out:
-            logger.error(f"{wallet_number} [{source_wallet_address}] - {self.config_data.source_coin_to_transfer} "
+            logger.error(f"{self.config_data.source_coin_to_transfer} "
                          f"({self.config_data.source_chain})"
                          f" balance not enough "
                          f"to bridge. Balance: {wallet_token_balance_decimals}. Need: {token_amount_out_decimals}")
@@ -110,7 +112,7 @@ class StgBridge(BridgeBase):
                                         token_obj=self.src_token_obj)
 
         if txn is None:
-            logger.error(f"{wallet_number} [{source_wallet_address}] - Failed to build transaction,"
+            logger.error(f"Failed to build transaction,"
                          f" please check your chain and coin bridge options")
             return
 
@@ -122,7 +124,7 @@ class StgBridge(BridgeBase):
 
             estimated_gas_limit = self.get_estimate_gas(transaction=txn)
             if self.config_data.test_mode is True:
-                logger.info(f"{wallet_number} [{source_wallet_address}] - Estimated gas limit for "
+                logger.info(f"Estimated gas limit for "
                             f"|{self.config_data.source_chain} → {self.config_data.target_chain}|, "
                             f"{token_amount_out_decimals} ({self.src_token_obj.name} → {self.dst_token_obj.name})"
                             f" bridge: {estimated_gas_limit}")
@@ -130,13 +132,25 @@ class StgBridge(BridgeBase):
 
             signed_txn = self.web3.eth.account.sign_transaction(txn, private_key=private_key)
             tx_hash = self.web3.eth.send_raw_transaction(signed_txn.rawTransaction)
-            logger.success(
-                f"{wallet_number}"
-                f" [{source_wallet_address}] - {self.config_data.source_chain} → {self.config_data.target_chain} "
-                f"{token_amount_out_decimals} {self.src_token_obj.name} bridge transaction sent: {tx_hash.hex()}")
 
-            return tx_hash.hex()
+            if self.config_data.wait_for_confirmation is True:
+                time_out = self.config_data.confirmation_timeout_seconds
+                tx_receipt = self.wait_for_tx_receipt(tx_hash=tx_hash, time_out=time_out)
+                if tx_receipt['status'] == 1:
+                    logger.success(
+                        f"{self.config_data.source_chain} → {self.config_data.target_chain}"
+                        f" ({token_amount_out_decimals} {self.src_token_obj.name})"
+                        f" bridge transaction success: {tx_hash.hex()}")
+                    return tx_hash.hex()
+                else:
+                    logger.error(f"Transaction is not success: {tx_hash.hex()}")
+
+            else:
+                logger.success(
+                    f"{self.config_data.source_chain} → {self.config_data.target_chain} "
+                    f"({token_amount_out_decimals} {self.src_token_obj.name}) bridge transaction sent: {tx_hash.hex()}")
+                return tx_hash.hex()
 
         except Exception as e:
-            logger.error(f"{wallet_number} [{source_wallet_address}] - Error while sending  transaction: {e}")
+            logger.error(f"Error while sending  transaction: {e}")
             return
