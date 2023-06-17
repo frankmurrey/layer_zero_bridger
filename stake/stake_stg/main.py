@@ -133,9 +133,9 @@ class StgStake(StakeBase):
             estimated_gas_limit = self.get_estimate_gas(transaction=stake_txn)
 
             if self.config_data.test_mode is True:
-                logger.info(f"Estimated gas limit for stake {stg_amount_to_stake_decimals}"
-                            f"{self.token_obj.name} ({self.config_data.source_chain}):"
-                            f" {estimated_gas_limit}")
+                logger.success(f"Estimated gas limit for stake {stg_amount_to_stake_decimals}"
+                               f"{self.token_obj.name} ({self.config_data.source_chain}):"
+                               f" {estimated_gas_limit}")
                 return
 
             signed_txn = self.web3.eth.account.sign_transaction(stake_txn, private_key=private_key)
