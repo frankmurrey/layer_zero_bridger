@@ -26,6 +26,8 @@ class BridgeBase:
         self.min_bridge_amount = config.min_bridge_amount
         self.max_bridge_amount = config.max_bridge_amount
 
+        self.eip1559_supported_chains = ["polygon", "avalanche", "arbitrum", "optimism", "ethereum"]
+
         self.web3 = self.source_chain.web3
 
     def get_wallet_number(self, wallet_number):
@@ -110,32 +112,6 @@ class BridgeBase:
     def get_amount_out_min(self, amount_out):
         return int(amount_out - (amount_out * self.config_data.slippage // 100))
 
-    def get_gas_price_for_allowance(self):
-        if self.config_data.source_chain.lower() == 'arbitrum':
-            return int(self.web3.eth.gas_price * 1.35)
-        elif self.config_data.source_chain.lower() == 'polygon':
-            return int(self.web3.eth.gas_price * 1.35)
-        elif self.config_data.source_chain.lower() == 'avalanche':
-            return int(self.web3.eth.gas_price * 1.15)
-        else:
-            return self.web3.eth.gas_price
-
-    def get_gas_price(self):
-        if self.config_data.custom_gas_price is True:
-            if self.config_data.gas_price is not None:
-                return self.web3.to_wei(self.config_data.gas_price, 'gwei')
-            else:
-                return self.web3.eth.gas_price
-        else:
-            if self.config_data.source_chain.lower() == 'arbitrum':
-                return int(self.web3.eth.gas_price * 1.35)
-            elif self.config_data.source_chain.lower() == 'polygon':
-                return int(self.web3.eth.gas_price * 1.35)
-            elif self.config_data.source_chain.lower() == 'avalanche':
-                return int(self.web3.eth.gas_price * 1.15)
-            else:
-                return self.web3.eth.gas_price
-
     def get_pool_id(self, token_obj):
         try:
             token_obj_pool_id = token_obj.pool_id
@@ -193,8 +169,8 @@ class BridgeBase:
                 allowance_txn['gas'] = estimate_gas_limit
 
             if self.config_data.test_mode is True:
-                logger.info(f"Estimated gas limit for {token_obj.name}"
-                            f" approve: {estimate_gas_limit}. You are currently in test mode")
+                logger.success(f"Estimated gas limit for {token_obj.name}"
+                               f" approve: {estimate_gas_limit}. You are currently in test mode")
                 return
 
             signed_txn = self.web3.eth.account.sign_transaction(allowance_txn, private_key=private_key)
@@ -242,56 +218,126 @@ class BridgeBase:
         params_bytes = bytes.fromhex(params)
         return params_bytes
 
+    def get_gas_price_for_allowance(self):
+        if self.config_data.source_chain.lower() == 'arbitrum':
+            return int(self.web3.eth.gas_price * 1.35)
+        elif self.config_data.source_chain.lower() == 'polygon':
+            return int(self.web3.eth.gas_price * 1.35)
+        elif self.config_data.source_chain.lower() == 'avalanche':
+            return int(self.web3.eth.gas_price * 1.15)
+        else:
+            return self.web3.eth.gas_price
+
+    def get_gas_price(self):
+        if self.config_data.custom_gas_price is True:
+            if self.config_data.gas_price is not None:
+                return self.web3.to_wei(self.config_data.gas_price, 'gwei')
+            else:
+                return self.web3.eth.gas_price
+        else:
+            return self.web3.eth.gas_price
+
+    def get_max_fee_per_gas(self):
+        gas_price = self.get_gas_price()
+
+        if self.config_data.source_chain.lower() == 'arbitrum':
+            return int(gas_price * 1.35)
+        else:
+            return int(gas_price * 2)
+
+    def get_max_priority_fee_per_gas(self, max_fee_per_gas) -> int:
+        source_chain_name = self.config_data.source_chain.lower()
+
+        if source_chain_name == 'optimism':
+            return int(max_fee_per_gas * 0.1)
+
+        elif source_chain_name == 'avalanche':
+            return int(max_fee_per_gas * 0.1)
+
+        elif source_chain_name == 'polygon':
+            return int(max_fee_per_gas * 0.1)
+
+        else:
+            return 0
+
+    def build_tx_data(self, txn_data):
+        if self.config_data.source_chain.lower() in self.eip1559_supported_chains:
+            max_fee_per_gas = self.get_max_fee_per_gas()
+            txn_data['maxFeePerGas'] = max_fee_per_gas
+            txn_data['maxPriorityFeePerGas'] = self.get_max_priority_fee_per_gas(max_fee_per_gas=max_fee_per_gas)
+        else:
+            txn_data['gasPrice'] = self.get_gas_price()
+
+        return txn_data
+
     def build_allowance_tx(self, wallet_address, token_contract, amount_out, spender):
         nonce = self.get_wallet_nonce(wallet_address=wallet_address)
-        gas_price = self.get_gas_price_for_allowance()
         gas_limit = self.config_data.gas_limit
+
+        txn_data = {
+            'from': wallet_address,
+            'nonce': nonce,
+            'gas': gas_limit,
+        }
+
+        if self.config_data.source_chain in self.eip1559_supported_chains:
+            txn_data['maxFeePerGas'] = self.get_max_fee_per_gas()
+            txn_data['maxPriorityFeePerGas'] = 0
+        else:
+            txn_data['gasPrice'] = self.get_gas_price_for_allowance()
+
         allowance_transaction = token_contract.functions.approve(
             spender,
             int(amount_out)
-        ).build_transaction({
-            'from': wallet_address,
-            'gas': gas_limit,
-            'gasPrice': gas_price,
-            'nonce': nonce,
-        })
+        ).build_transaction(txn_data)
         return allowance_transaction
 
     def build_eth_bridge_tx(self, wallet_address, amount_out, chain_id, dst_wallet_address):
         fee: int = self.get_txn_fee(wallet_address=wallet_address)
         amount_out_min = self.get_amount_out_min(amount_out=amount_out)
         nonce = self.get_wallet_nonce(wallet_address=wallet_address)
-        gas_price = self.get_gas_price()
         gas_limit = self.config_data.gas_limit
+
+        txn_data = {
+            'from': wallet_address,
+            'nonce': nonce,
+            'gas': gas_limit,
+            'value': amount_out + fee
+        }
+
+        txn_data = self.build_tx_data(txn_data=txn_data)
+
         bridge_transaction = self.source_chain.eth_router_contract.functions.swapETH(
             chain_id,
             wallet_address,
             dst_wallet_address,
             amount_out,
             amount_out_min
-        ).build_transaction({
-            'from': wallet_address,
-            'value': amount_out + fee,
-            'gas': gas_limit,
-            'gasPrice': gas_price,
-            'nonce': nonce,
-        })
+        ).build_transaction(txn_data)
 
         return bridge_transaction
 
-    def build_token_bridge_tx(self, wallet_address, amount_out, chain_id, src_token_obj, dst_token_obj,
-                              dst_wallet_address):
+    def build_token_bridge_from_stargate_tx(self, wallet_address, amount_out, chain_id, src_token_obj, dst_token_obj,
+                                            dst_wallet_address):
 
         fee: int = self.get_txn_fee(wallet_address=wallet_address)
         amount_out_min = self.get_amount_out_min(amount_out=amount_out)
         nonce = self.get_wallet_nonce(wallet_address=wallet_address)
-        gas_price = self.get_gas_price()
         gas_limit = self.config_data.gas_limit
 
         src_pool_id = self.get_pool_id(token_obj=src_token_obj)
         dst_pool_id = self.get_pool_id(token_obj=dst_token_obj)
         if src_pool_id is None or dst_pool_id is None:
             return None
+
+        txn_data = {
+            'from': wallet_address,
+            'nonce': nonce,
+            'gas': gas_limit,
+            'value': fee
+        }
+
+        txn_data = self.build_tx_data(txn_data=txn_data)
 
         bridge_transaction = self.source_chain.router_contract.functions.swap(
             chain_id,
@@ -303,13 +349,7 @@ class BridgeBase:
             [0, 0, '0x0000000000000000000000000000000000000001'],
             dst_wallet_address,
             "0x"
-        ).build_transaction({
-            'from': wallet_address,
-            'value': fee,
-            'gas': gas_limit,
-            'gasPrice': gas_price,
-            'nonce': nonce,
-        })
+        ).build_transaction(txn_data)
 
         return bridge_transaction
 
@@ -319,21 +359,25 @@ class BridgeBase:
         fee: int = self.get_endpoint_txn_fee(chain_id=108,
                                              router_address=self.source_chain.aptos_router_address,
                                              adapter_params=adapter_params)
-        gas_price = self.get_gas_price()
         gas_limit = self.config_data.gas_limit
+        nonce = self.get_wallet_nonce(wallet_address=source_wallet_address)
+
+        txn_data = {
+            'from': source_wallet_address,
+            'nonce': nonce,
+            'gas': gas_limit,
+            'value': fee
+        }
+
+        txn_data = self.build_tx_data(txn_data=txn_data)
+
         bridge_transaction = self.source_chain.aptos_router_contract.functions.sendToAptos(
             token_obj.address,
             recipient_address,
             amount_out,
             [source_wallet_address, zro_payment_address],
             adapter_params
-        ).build_transaction({
-            'from': source_wallet_address,
-            'value': int(fee * 1.1),
-            'gas': gas_limit,
-            'gasPrice': gas_price,
-            'nonce': self.get_wallet_nonce(wallet_address=source_wallet_address),
-        })
+        ).build_transaction(txn_data)
 
         return bridge_transaction
 
@@ -343,41 +387,59 @@ class BridgeBase:
         fee: int = self.get_endpoint_txn_fee(chain_id=108,
                                              router_address=self.source_chain.aptos_router_address,
                                              adapter_params=adapter_params)
+
+        txn_data = {
+            'from': source_wallet_address,
+            'value': int(fee + amount_out),
+            'gas': self.config_data.gas_limit,
+            'nonce': self.get_wallet_nonce(wallet_address=source_wallet_address),
+        }
+
+        txn_data = self.build_tx_data(txn_data=txn_data)
+
         bridge_transaction = self.source_chain.aptos_router_contract.functions.sendETHToAptos(
             recipient_address,
             amount_out,
             [source_wallet_address, zro_payment_address],
             adapter_params
-        ).build_transaction({
-            'from': source_wallet_address,
-            'value': int(fee * 1.1 + amount_out),
-            'gas': self.config_data.gas_limit,
-            'gasPrice': self.get_gas_price(),
-            'nonce': self.get_wallet_nonce(wallet_address=source_wallet_address),
-        })
+        ).build_transaction(txn_data)
+
         return bridge_transaction
 
     def build_token_bridge_core_tx(self, wallet_address, amount_out, token_obj, dst_wallet_address):
         zro_payment_address = self.web3.to_checksum_address('0x0000000000000000000000000000000000000000')
         fee: int = self.get_core_bridge_fee(adapter_params='0x')
+
+        txn_data = {
+            'from': wallet_address,
+            'value': fee,
+            'gas': self.config_data.gas_limit,
+            'nonce': self.get_wallet_nonce(wallet_address=wallet_address),
+        }
+
+        txn_data = self.build_tx_data(txn_data=txn_data)
+
         bridge_transaction = self.source_chain.core_dao_router_contract.functions.bridge(
             token_obj.address,
             amount_out,
             dst_wallet_address,
             [wallet_address, zro_payment_address],
             '0x'
-        ).build_transaction({
-            'from': wallet_address,
-            'value': fee,
-            'gas': self.config_data.gas_limit,
-            'gasPrice': self.get_gas_price(),
-            'nonce': self.get_wallet_nonce(wallet_address=wallet_address)
-        })
+        ).build_transaction(txn_data)
         return bridge_transaction
 
     def build_token_bridge_frome_core_tx(self, wallet_address, amount_out, token_obj, dst_wallet_address):
         zro_payment_address = self.web3.to_checksum_address('0x0000000000000000000000000000000000000000')
         fee: int = self.get_txn_fee_bridge_from_core(target_chain_id=self.target_chain.chain_id)
+
+        txn_data = {
+            'from': wallet_address,
+            'value': fee,
+            'gas': self.config_data.gas_limit,
+            'nonce': self.get_wallet_nonce(wallet_address=wallet_address),
+        }
+
+        txn_data = self.build_tx_data(txn_data=txn_data)
 
         bridge_transaction = self.source_chain.router_contract.functions.bridge(
             token_obj.address,
@@ -387,13 +449,7 @@ class BridgeBase:
             True,
             [wallet_address, zro_payment_address],
             '0x'
-        ).build_transaction({
-            'from': wallet_address,
-            'value': fee,
-            'gas': self.config_data.gas_limit,
-            'gasPrice': self.get_gas_price(),
-            'nonce': self.get_wallet_nonce(wallet_address=wallet_address)
-        })
+        ).build_transaction(txn_data)
         return bridge_transaction
 
     def build_stg_bridge_txn(self, src_wallet_address, dst_wallet_address, amount_out, token_obj, dst_cain_id):
@@ -402,19 +458,22 @@ class BridgeBase:
         adapter_params = self.get_adapter_params_v1(gas_on_destination=85000)
         token_contract = self.web3.eth.contract(address=token_obj.address, abi=token_obj.abi)
 
+        txn_data = {
+            'from': src_wallet_address,
+            'value': fee,
+            'gas': self.config_data.gas_limit,
+            'nonce': self.get_wallet_nonce(wallet_address=src_wallet_address),
+        }
+
+        txn_data = self.build_tx_data(txn_data=txn_data)
+
         bridge_transaction = token_contract.functions.sendTokens(
             dst_cain_id,
             dst_wallet_address,
             amount_out,
             zro_payment_address,
             adapter_params
-        ).build_transaction({
-            'from': src_wallet_address,
-            'gas': self.config_data.gas_limit,
-            'value': fee,
-            'gasPrice': self.get_gas_price(),
-            'nonce': self.get_wallet_nonce(wallet_address=src_wallet_address)
-        })
+        ).build_transaction(txn_data)
         return bridge_transaction
 
 
