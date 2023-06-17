@@ -129,9 +129,9 @@ class LiquidityStargate(StakeBase):
             estimated_gas_limit = self.get_estimate_gas(transaction=add_liquidity_txn)
 
             if self.config_data.test_mode is True:
-                logger.info(f"Estimated gas limit for add {token_amount_out_to_stake_decimals}"
-                            f"{self.token_obj.name} ({self.config_data.source_chain}) liquidity:"
-                            f": {estimated_gas_limit}")
+                logger.success(f"Estimated gas limit for add {token_amount_out_to_stake_decimals}"
+                               f"{self.token_obj.name} ({self.config_data.source_chain}) liquidity:"
+                               f": {estimated_gas_limit}")
                 return
 
             signed_txn = self.web3.eth.account.sign_transaction(add_liquidity_txn, private_key=private_key)

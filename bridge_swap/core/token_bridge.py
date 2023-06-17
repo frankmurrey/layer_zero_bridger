@@ -132,8 +132,9 @@ class CoreDaoBridger(BridgeBase):
                 txn['gas'] = estimated_gas_limit
 
             if self.config_data.test_mode is True:
-                logger.info(f"Estimated gas limit for {self.config_data.source_chain} → {self.config_data.target_chain}"
-                            f" {self.token_obj.name} bridge: {estimated_gas_limit}")
+                logger.success(
+                    f"Estimated gas limit for {self.config_data.source_chain} → {self.config_data.target_chain}"
+                    f" {self.token_obj.name} bridge: {estimated_gas_limit}")
                 return
 
             signed_txn = self.web3.eth.account.sign_transaction(txn, private_key=private_key)
@@ -226,9 +227,9 @@ class CoreDaoBridger(BridgeBase):
                 txn['gas'] = estimated_gas_limit
 
             if self.config_data.test_mode is True:
-                logger.info(f"Estimated gas limit for "
-                            f"{self.config_data.source_chain} → {self.config_data.target_chain} "
-                            f"{self.token_obj.name} bridge: {estimated_gas_limit}")
+                logger.success(f"Estimated gas limit for "
+                               f"{self.config_data.source_chain} → {self.config_data.target_chain} "
+                               f"{self.token_obj.name} bridge: {estimated_gas_limit}")
                 return
 
             signed_txn = self.web3.eth.account.sign_transaction(txn, private_key=private_key)

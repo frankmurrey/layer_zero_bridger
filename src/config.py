@@ -79,7 +79,7 @@ def get_stake_stg_config_from_dict(config_dict: dict) -> StakeStgConfig:
 
 
 def print_config(config):
-    delay_seconds = 2
+    delay_seconds = 5
 
     logger.remove()
     logger.add(stderr,

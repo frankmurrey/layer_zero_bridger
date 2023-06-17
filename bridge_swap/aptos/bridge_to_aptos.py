@@ -27,7 +27,7 @@ def eth_mass_transfer_to_aptos(config_data: ConfigSchema):
         for wallet in range(wallets_amount):
             blured_wallet = token_bridge.blur_private_key(private_key=evm_wallets[wallet])
             wallet_address = token_bridge.get_wallet_address(private_key=evm_wallets[wallet])
-            logger.info(f"[{wallet}] - {wallet_address}")
+            logger.info(f"[{wallet + 1}] - {wallet_address}")
             logger.info(f"Got wallet pk /{blured_wallet}/")
 
             bridge_status = token_bridge.eth_transfer(private_key=evm_wallets[wallet],
@@ -57,7 +57,7 @@ def eth_mass_transfer_to_aptos(config_data: ConfigSchema):
         for wallet in range(wallets_amount):
             blured_wallet = token_bridge.blur_private_key(private_key=evm_wallets[wallet])
             wallet_address = token_bridge.get_wallet_address(private_key=evm_wallets[wallet])
-            logger.info(f"[{wallet}] - {wallet_address}")
+            logger.info(f"[{wallet + 1}] - {wallet_address}")
             logger.info(f"Got wallet pk /{blured_wallet}/")
 
             bridge_status = token_bridge.eth_transfer(private_key=evm_wallets[wallet],
@@ -101,7 +101,7 @@ def token_mass_transfer_to_aptos(config_data: ConfigSchema):
         for wallet in range(wallets_amount):
             blured_wallet = token_bridge.blur_private_key(private_key=evm_wallets[wallet])
             wallet_address = token_bridge.get_wallet_address(private_key=evm_wallets[wallet])
-            logger.info(f"[{wallet}] - {wallet_address}")
+            logger.info(f"[{wallet + 1}] - {wallet_address}")
             logger.info(f"Got wallet pk /{blured_wallet}/")
 
             bridge_status = token_bridge.token_transfer(private_key=evm_wallets[wallet],
@@ -130,7 +130,7 @@ def token_mass_transfer_to_aptos(config_data: ConfigSchema):
         for wallet in range(wallets_amount):
             blured_wallet = token_bridge.blur_private_key(private_key=evm_wallets[wallet])
             wallet_address = token_bridge.get_wallet_address(private_key=evm_wallets[wallet])
-            logger.info(f"[{wallet}] - {wallet_address}")
+            logger.info(f"[{wallet + 1}] - {wallet_address}")
             logger.info(f"Got wallet pk /{blured_wallet}/")
 
             bridge_status = token_bridge.token_transfer(private_key=evm_wallets[wallet],
@@ -192,7 +192,7 @@ class EthBridgeManualAptos(BridgeBase):
                 txn['gas'] = int(estimated_gas_limit + (estimated_gas_limit * 0.6))
 
             if self.config_data.test_mode is True:
-                logger.info(f"Estimated gas limit for ETH bridge: {estimated_gas_limit}")
+                logger.success(f"Estimated gas limit for ETH bridge: {estimated_gas_limit}")
                 return
 
             signed_txn = self.web3.eth.account.sign_transaction(txn, private_key=private_key)
@@ -298,10 +298,9 @@ class TokenBridgeManualAptos(BridgeBase):
                 txn['gas'] = estimated_gas_limit
 
             if self.config_data.test_mode is True:
-                logger.info(
-                    f"Estimated gas limit for {self.config_data.source_chain}"
-                    f" → Aptos "
-                    f"{self.token_obj.name} bridge: {estimated_gas_limit}")
+                logger.success(f"Estimated gas limit for {self.config_data.source_chain}"
+                               f" → Aptos "
+                               f"{self.token_obj.name} bridge: {estimated_gas_limit}")
                 return
 
             signed_txn = self.web3.eth.account.sign_transaction(txn, private_key=private_key)

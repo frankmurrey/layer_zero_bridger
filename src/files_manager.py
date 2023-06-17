@@ -70,6 +70,11 @@ def save_config(config):
         yaml.dump(config, f, sort_keys=True)
 
 
+def save_warmup_config(config):
+    with open(WARM_UP_CONFIG_FILE, "w") as f:
+        yaml.dump(config, f, sort_keys=True)
+
+
 def load_config():
     try:
         with open(CONFIG_FILE, "r") as f:

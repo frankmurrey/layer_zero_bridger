@@ -86,9 +86,9 @@ class EthBridgeManual(BridgeBase):
                 txn['gas'] = estimated_gas_limit
 
             if self.config_data.test_mode is True:
-                logger.info(f"Estimated gas limit for {self.source_chain.name} → "
-                            f"{self.target_chain.name} "
-                            f"ETH bridge: {estimated_gas_limit}")
+                logger.success(f"Estimated gas limit for {self.source_chain.name} → "
+                               f"{self.target_chain.name} "
+                               f"ETH bridge: {estimated_gas_limit}")
                 return
 
             signed_txn = self.web3.eth.account.sign_transaction(txn, private_key=private_key)
