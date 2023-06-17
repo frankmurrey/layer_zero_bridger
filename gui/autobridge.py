@@ -1,6 +1,6 @@
-from src.files_manager import read_evm_wallets_from_file
+from src.files_manager import read_evm_wallets_from_file, save_warmup_config
 from src.bridge_manager import WarmUpRouteValidator
-from src.config import get_warmup_config_from_dict
+from src.config import get_warmup_config_from_dict, load_warmup_config
 
 from bridge_swap.warm_up.main import initialize_all_wallets, warm_up, save_summary_log_file
 
@@ -13,10 +13,40 @@ class LayerZeroAutoBridgeGui:
         self.available_coin_names = ['Stablecoins', 'Ethereum']
         self.bridge_data = None
 
+    def load_data_from_config(self, window):
+        config = load_warmup_config()
+        if not config:
+            sg.popup('No config found', title='Error', text_color='red')
+            return
+
+        for chain_name in self.available_chain_names:
+            window[f'{chain_name}_checkbox_chain_option'].update(value=chain_name in config['chain_options'])
+
+        if config['coin_to_transfer'] == 'stable_coins':
+            window['coin_to_transfer'].update(value='Stablecoins')
+        else:
+            window['coin_to_transfer'].update(value='Ethereum')
+
+        window['min_delay'].update(value=config['min_delay_seconds'])
+        window['max_delay'].update(value=config['max_delay_seconds'])
+        window['min_amount_to_transfer'].update(value=config['min_amount_to_transfer'])
+        window['max_amount_to_transfer'].update(value=config['max_amount_to_transfer'])
+        window['send_all_balance'].update(value=config['send_all_balance'])
+        window['max_gas_limit'].update(value=config['max_gas_limit'])
+        window['slippage'].update(value=config['slippage'])
+        window['confirmation_timeout_seconds'].update(value=config['confirmation_timeout_seconds'])
+        window['shuffle_wallets'].update(value=config['shuffle_wallets_order'])
+        window['test_mode'].update(value=config['test_mode'])
+
+    def save_data_to_config(self, values):
+        config = self.build_config_dict(values)
+        save_warmup_config(config)
+
     def bridge_menu_layout(self):
         evm_wallets_loaded_text = sg.Text(f'Evm wallets loaded: {len(read_evm_wallets_from_file())}',
                                           text_color='yellow',
-                                          font=('Helvetica', 12))
+                                          font=('Helvetica', 12),
+                                          key='evm_wallets_loaded_text')
         chain_options_text = sg.Text('Select chains (Stargate bridge):', text_color='white', font=('Helvetica', 12))
         chain_name_layouts = []
         for chain_name in self.available_chain_names:
@@ -68,7 +98,9 @@ class LayerZeroAutoBridgeGui:
         test_mode_checkbox = sg.Checkbox('Test mode', default=True, key='test_mode')
 
         next_button = sg.Button('Next', size=(10, 1), key='next_button')
-        exit_button = sg.Button('Exit', size=(10, 1), key='exit_button')
+        load_wallets_button = sg.Button('Load wallets', size=(10, 1), key='load_wallets_button')
+        save_config_button = sg.Button('Save config', size=(10, 1), key='save_config_button')
+        load_config_button = sg.Button('Load config', size=(10, 1), key='load_config_button')
 
         watermark_text = sg.Text('https://github.com/frankmurrey (tg @shnubjack)', text_color='white',
                                  font=('Helvetica', 9))
@@ -93,7 +125,7 @@ class LayerZeroAutoBridgeGui:
             [shuffle_wallets_checkbox],
             [sg.Text('')],
             [test_mode_checkbox],
-            [next_button, exit_button],
+            [next_button, load_wallets_button, save_config_button, load_config_button],
             [watermark_text]
         ]
 
@@ -217,6 +249,12 @@ class LayerZeroAutoBridgeGui:
         else:
             receipt_timeout_input.update(disabled=True, value='', text_color='grey')
 
+    def load_wallets_option(self, window):
+        evm_wallets = window['evm_wallets_text']
+
+        evm_wallets.update(f"Evm wallets loaded: {len(read_evm_wallets_from_file())}")
+        window.read()
+
     def run_initial_window(self):
         bridge_menu_layout = self.bridge_menu_layout()
         window = sg.Window('Layer Zero Auto', bridge_menu_layout, size=(550, 650))
@@ -227,8 +265,25 @@ class LayerZeroAutoBridgeGui:
             if event == sg.WINDOW_CLOSED or event == 'Cancel':
                 break
 
-            elif event == 'exit_button':
-                break
+            elif event == 'load_wallets_button':
+                self.load_wallets_option(window)
+                sg.popup('Evm wallets loaded', title='Success', text_color='yellow')
+
+            elif event == 'save_config_button':
+                config_data = self.build_config_dict(values)
+                config = get_warmup_config_from_dict(config_data)
+                self.bridge_data = config
+
+                warmup_route_validator = WarmUpRouteValidator(input_data=config)
+                route_status = warmup_route_validator.check_route()
+                if route_status is not True:
+                    sg.popup(route_status, title='Error', text_color='yellow')
+                    continue
+                self.save_data_to_config(values)
+                sg.popup('Config saved', title='Success', text_color='blue')
+
+            elif event == 'load_config_button':
+                self.load_data_from_config(window)
 
             elif event == 'send_all_balance':
                 self.send_all_balance_option(values, window)
