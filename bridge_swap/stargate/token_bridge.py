@@ -123,12 +123,12 @@ class TokenBridgeManual(BridgeBase):
         else:
             logger.info(f"Wallet has enough allowance to bridge")
 
-        txn = self.build_token_bridge_tx(wallet_address=wallet_address,
-                                         dst_wallet_address=dst_wallet_address,
-                                         src_token_obj=self.src_token_obj,
-                                         dst_token_obj=self.dst_token_obj,
-                                         amount_out=token_amount_out,
-                                         chain_id=self.target_chain.chain_id)
+        txn = self.build_token_bridge_from_stargate_tx(wallet_address=wallet_address,
+                                                       dst_wallet_address=dst_wallet_address,
+                                                       src_token_obj=self.src_token_obj,
+                                                       dst_token_obj=self.dst_token_obj,
+                                                       amount_out=token_amount_out,
+                                                       chain_id=self.target_chain.chain_id)
 
         if txn is None:
             logger.error(f"Failed to build transaction, please check your chain and coin bridge options")
@@ -141,10 +141,10 @@ class TokenBridgeManual(BridgeBase):
             estimated_gas_limit = self.get_estimate_gas(transaction=txn)
 
             if self.config_data.test_mode is True:
-                logger.info(f"Estimated gas limit for "
-                            f"|{self.config_data.source_chain} → {self.config_data.target_chain}|, "
-                            f"{token_amount_out_decimals} ({self.src_token_obj.name} → {self.dst_token_obj.name})"
-                            f" bridge: {estimated_gas_limit}")
+                logger.success(f"Estimated gas limit for "
+                               f"|{self.config_data.source_chain} → {self.config_data.target_chain}|, "
+                               f"{token_amount_out_decimals} ({self.src_token_obj.name} → {self.dst_token_obj.name})"
+                               f" bridge: {estimated_gas_limit}")
                 return
 
             signed_txn = self.web3.eth.account.sign_transaction(txn, private_key=private_key)
