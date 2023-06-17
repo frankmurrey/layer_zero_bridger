@@ -392,6 +392,7 @@ class LayerZeroManualGui:
 
             elif event == 'load_wallets_button':
                 self.load_wallets_option(window)
+                sg.popup('Evm wallets loaded', title='Success', text_color='yellow')
 
             elif event == 'bridge_option':
                 self.bridge_option(values, window)
