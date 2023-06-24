@@ -136,7 +136,7 @@ class BridgeBase:
             current_allowance = self.check_allowance(wallet_address=wallet_address,
                                                      token_contract=token_contract,
                                                      spender=spender)
-            logger.debug(f"Waiting allowance txn, allowance: {current_allowance}, need: {target_allowance_amount}, "
+            logger.debug(f"Waiting allowance, allowance: {current_allowance}, need: {target_allowance_amount}, "
                          f"time passed: {time.time() - process_start_time}")
 
             if current_allowance >= target_allowance_amount:
@@ -175,15 +175,21 @@ class BridgeBase:
 
             signed_txn = self.web3.eth.account.sign_transaction(allowance_txn, private_key=private_key)
             tx_hash = self.web3.eth.send_raw_transaction(signed_txn.rawTransaction)
-            logger.success(f"Approve transaction sent: {tx_hash.hex()}")
-            time.sleep(0.2)
+            time_out = int(self.config_data.confirmation_timeout_seconds)
+            tx_receipt = self.wait_for_tx_receipt(tx_hash=tx_hash, time_out=time_out)
+
+            if tx_receipt['status'] == 1:
+                logger.success(f"Approve transaction success: {tx_hash.hex()}")
+            else:
+                logger.error(f"Approve transaction is not success: {tx_hash.hex()}")
+                return False
 
             allowance_check = self.allowance_check_loop(wallet_address=wallet_address,
                                                         target_allowance_amount=target_approve_amount,
                                                         token_contract=token_contract,
                                                         spender=spender)
             if allowance_check is True:
-                logger.info(f"Approve transaction confirmed")
+                logger.info(f"Approve amount is enough")
                 time.sleep(2)
                 return True
             else:
@@ -235,13 +241,21 @@ class BridgeBase:
             else:
                 return self.web3.eth.gas_price
         else:
-            return self.web3.eth.gas_price
+            if self.config_data.source_chain.lower() == 'polygon':
+                return int(self.web3.eth.gas_price * 1.2)
+            else:
+                return self.web3.eth.gas_price
 
     def get_max_fee_per_gas(self):
         gas_price = self.get_gas_price()
+        source_chain_name = self.config_data.source_chain.lower()
 
-        if self.config_data.source_chain.lower() == 'arbitrum':
+        if source_chain_name == 'arbitrum':
             return int(gas_price * 1.35)
+
+        elif source_chain_name == 'polygon':
+            return int(gas_price * 1.35)
+
         else:
             return int(gas_price * 2)
 
@@ -249,16 +263,20 @@ class BridgeBase:
         source_chain_name = self.config_data.source_chain.lower()
 
         if source_chain_name == 'optimism':
-            return int(max_fee_per_gas * 0.1)
+            max_priority_wei = int(max_fee_per_gas * 0.1)
 
         elif source_chain_name == 'avalanche':
-            return int(max_fee_per_gas * 0.1)
+            max_priority_wei = int(max_fee_per_gas * 0.1)
 
         elif source_chain_name == 'polygon':
-            return int(max_fee_per_gas * 0.1)
+            max_priority_wei_raw = int(max_fee_per_gas * 0.19)
+            max_priority_str = str(max_priority_wei_raw)[:2] + '0' * (len(str(max_priority_wei_raw)) - 2)
+            max_priority_wei = int(max_priority_str)
 
         else:
-            return 0
+            max_priority_wei = 0
+
+        return max_priority_wei
 
     def build_tx_data(self, txn_data):
         if self.config_data.source_chain.lower() in self.eip1559_supported_chains:
@@ -278,6 +296,7 @@ class BridgeBase:
             'from': wallet_address,
             'nonce': nonce,
             'gas': gas_limit,
+            'gasPrice': self.get_gas_price_for_allowance()
         }
 
         if self.config_data.source_chain in self.eip1559_supported_chains:
@@ -359,6 +378,7 @@ class BridgeBase:
         fee: int = self.get_endpoint_txn_fee(chain_id=108,
                                              router_address=self.source_chain.aptos_router_address,
                                              adapter_params=adapter_params)
+        print(fee)
         gas_limit = self.config_data.gas_limit
         nonce = self.get_wallet_nonce(wallet_address=source_wallet_address)
 
@@ -366,7 +386,7 @@ class BridgeBase:
             'from': source_wallet_address,
             'nonce': nonce,
             'gas': gas_limit,
-            'value': fee
+            'value': int(fee * 1.1)
         }
 
         txn_data = self.build_tx_data(txn_data=txn_data)
