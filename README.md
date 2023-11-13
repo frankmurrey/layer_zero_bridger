@@ -132,3 +132,9 @@ P.S. Количество аптос и евм кошельков должно �
 `run_autobridge.py` - run файл для **Warmup bridger**
 
 
+## Support
+
+**Thanks for a coffee!**
+
+EVM - `0xA7579FF5783e8bD48E5002a294A0b1054F820760`
+
